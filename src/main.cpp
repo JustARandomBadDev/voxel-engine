@@ -1,7 +1,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -12,17 +11,17 @@
 #include "world/chunk_manager.h"
 #include "world/procedural_generator.h" 
 
-void update() {
-    ChunkManager::get().update();
+void update(ChunkManager& chunkManager) {
+    chunkManager.update();
 }
 
-void upload() {
-    ChunkManager::get().upload();
+void upload(ChunkManager& chunkManager, VulkanApp& app) {
+    chunkManager.upload(app.getCamera()->getPosition(), app.getBufferManager());
 }
 
-void procedural() {
+void procedural(ChunkManager& chunkManager) {
     int size = 27;
-    ProceduralGenerator p;
+    ProceduralGenerator p(chunkManager);
     for (int x = -(size/2); x < size/2; x++) {
         for (int y = -(size/2); y < size/2; y++) {
             p.generateChunk({x, y});
@@ -30,8 +29,8 @@ void procedural() {
     }
 }
 
-void test() {
-    Chunk* chunk = ChunkManager::get().addChunk({0, 6, 0});
+void test(ChunkManager& chunkManager, VulkanApp& app) {
+    Chunk* chunk = chunkManager.addChunk({0, 6, 0});
 
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int z = 0; z < CHUNK_SIZE; z++) {
@@ -40,24 +39,24 @@ void test() {
         }
     }
 
-    chunk->update();
-    chunk->upload();
+    chunk->update(chunkManager);
+    chunk->upload(app.getCamera()->getPosition(), app.getBufferManager());
 }
 
-void test2() {
-    Chunk* chunk = ChunkManager::get().addChunk({0, 6, 0});
+void test2(ChunkManager& chunkManager, VulkanApp& app) {
+    Chunk* chunk = chunkManager.addChunk({0, 6, 0});
 
     chunk->addVoxel({0, 1, 0}, 3);
 
-    chunk->update();
-    chunk->upload();
+    chunk->update(chunkManager);
+    chunk->upload(app.getCamera()->getPosition(), app.getBufferManager());
 }
 
-void flat() {
+void flat(ChunkManager& chunkManager) {
     Chunk* chunk;
     for (int cx = 0; cx < 1; cx++) {
         for (int cy = 0; cy < 1; cy++) {
-            chunk = ChunkManager::get().addChunk({cx, 0, cy});
+            chunk = chunkManager.addChunk({cx, 0, cy});
 
             for (int x = 0; x < CHUNK_SIZE; x++) {
                 for (int z = 0; z < CHUNK_SIZE; z++) {
@@ -68,10 +67,11 @@ void flat() {
     }
     chunk->addVoxel({0, 1, 0}, 1);
 
-    ChunkManager::get().update();
+    chunkManager.update();
 }
 
-double timeOf(void (*func)(), std::string msg) {
+template<typename Func>
+double timeOf(Func func, std::string msg) {
     auto start = std::chrono::high_resolution_clock::now();
     func();
     auto end = std::chrono::high_resolution_clock::now();
@@ -84,7 +84,8 @@ double timeOf(void (*func)(), std::string msg) {
 }
 
 void run() {
-    VulkanApp& app = VulkanApp::get();
+    VulkanApp app;
+    ChunkManager chunkManager;
 
     app.init({0, 10.0f, 0}, 70);
 
@@ -92,9 +93,9 @@ void run() {
 
     double total = 0;
 
-    total += timeOf(procedural, "Temps de génération du monde : ");
-    total += timeOf(update, "Temps de crétion des mesh : ");
-    total += timeOf(upload, "Temps de d'allocation GPU : ");
+    total += timeOf([&]() { procedural(chunkManager); }, "Temps de génération du monde : ");
+    total += timeOf([&]() { update(chunkManager); }, "Temps de crétion des mesh : ");
+    total += timeOf([&]() { upload(chunkManager, app); }, "Temps de d'allocation GPU : ");
     // total += timeOf(upload, "Temps de de réallocation GPU : ");
 
     std::cout << "Temps total : " << total << std::endl;
@@ -120,10 +121,10 @@ void run() {
             lastTime = currentTime;
         }
 
-        ChunkManager::get().update();
-        ChunkManager::get().upload();
+        chunkManager.update();
+        chunkManager.upload(app.getCamera()->getPosition(), app.getBufferManager());
 
-        Renderer::get().resetCommandBuffers();
+        app.getRenderer().resetCommandBuffers();
     
         app.render();
     }

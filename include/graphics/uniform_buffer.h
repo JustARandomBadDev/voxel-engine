@@ -14,9 +14,11 @@ struct UniformBufferObject {
     alignas(16) DirectionalLight moonLight;
 };
 
+class Device;
+
 class UniformBuffer {
 public:
-    void createUniformBuffer();
+    void createUniformBuffer(Device& p_device);
     void updateUniformBuffer(glm::vec3 camPos, glm::mat4 matrix, glm::vec3 sunPos, glm::vec3 moonPos);
     void cleanup();
 

@@ -6,9 +6,9 @@
 #include "graphics/swapchain.h"
 #include "graphics/vertex.h"
 
-void GraphicPipeline::createRenderPass() {
+void GraphicPipeline::createRenderPass(Swapchain& p_swapchain, Device& p_device) {
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = Swapchain::get().getSwapChainImageFormat();
+    colorAttachment.format = p_swapchain.getSwapChainImageFormat();
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -18,7 +18,7 @@ void GraphicPipeline::createRenderPass() {
     colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = Device::get().findDepthFormat();
+    depthAttachment.format = p_device.findDepthFormat();
     depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -59,12 +59,12 @@ void GraphicPipeline::createRenderPass() {
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(Device::get().getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+    if (vkCreateRenderPass(p_device.getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
         throw std::runtime_error("failed to create render pass!");
     }
 }
 
-void GraphicPipeline::createDescriptorSetLayout() {
+void GraphicPipeline::createDescriptorSetLayout(Device& p_device) {
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding = 0;
     uboLayoutBinding.descriptorCount = 1;
@@ -85,17 +85,17 @@ void GraphicPipeline::createDescriptorSetLayout() {
     layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
     layoutInfo.pBindings = bindings.data();
 
-    if (vkCreateDescriptorSetLayout(Device::get().getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+    if (vkCreateDescriptorSetLayout(p_device.getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor set layout!");
     }
 }
 
-void GraphicPipeline::createGraphicsPipeline() {
+void GraphicPipeline::createGraphicsPipeline(Device& p_device) {
     auto vertShaderCode = readFile("res/shaders/vert.spv");
     auto fragShaderCode = readFile("res/shaders/frag.spv");
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, p_device);
+    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, p_device);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -185,11 +185,11 @@ void GraphicPipeline::createGraphicsPipeline() {
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
-    if (vkCreatePipelineLayout(Device::get().getDevice(), &pipelineLayoutInfo, nullptr, &opaquePipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(p_device.getDevice(), &pipelineLayoutInfo, nullptr, &opaquePipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
 
-    if (vkCreatePipelineLayout(Device::get().getDevice(), &pipelineLayoutInfo, nullptr, &transparentPipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(p_device.getDevice(), &pipelineLayoutInfo, nullptr, &transparentPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
 
@@ -210,7 +210,7 @@ void GraphicPipeline::createGraphicsPipeline() {
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if (vkCreateGraphicsPipelines(Device::get().getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &opaquePipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(p_device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &opaquePipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
 
@@ -226,36 +226,36 @@ void GraphicPipeline::createGraphicsPipeline() {
 
     rasterizer.cullMode = VK_CULL_MODE_NONE;
 
-    if (vkCreateGraphicsPipelines(Device::get().getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &transparentPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(p_device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &transparentPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
 
-    vkDestroyShaderModule(Device::get().getDevice(), fragShaderModule, nullptr);
-    vkDestroyShaderModule(Device::get().getDevice(), vertShaderModule, nullptr);
+    vkDestroyShaderModule(p_device.getDevice(), fragShaderModule, nullptr);
+    vkDestroyShaderModule(p_device.getDevice(), vertShaderModule, nullptr);
 }
 
-void GraphicPipeline::cleanup() {
-    vkDestroyPipeline(Device::get().getDevice(), opaquePipeline, nullptr);
-    vkDestroyPipelineLayout(Device::get().getDevice(), opaquePipelineLayout, nullptr);
+void GraphicPipeline::cleanup(Device& p_device) {
+    vkDestroyPipeline(p_device.getDevice(), opaquePipeline, nullptr);
+    vkDestroyPipelineLayout(p_device.getDevice(), opaquePipelineLayout, nullptr);
 
-    vkDestroyPipeline(Device::get().getDevice(), transparentPipeline, nullptr);
-    vkDestroyPipelineLayout(Device::get().getDevice(), transparentPipelineLayout, nullptr);
+    vkDestroyPipeline(p_device.getDevice(), transparentPipeline, nullptr);
+    vkDestroyPipelineLayout(p_device.getDevice(), transparentPipelineLayout, nullptr);
 
-    vkDestroyRenderPass(Device::get().getDevice(), renderPass, nullptr);
+    vkDestroyRenderPass(p_device.getDevice(), renderPass, nullptr);
 }
 
-void GraphicPipeline::cleanupDescriptorSetLayout() {
-    vkDestroyDescriptorSetLayout(Device::get().getDevice(), descriptorSetLayout, nullptr);
+void GraphicPipeline::cleanupDescriptorSetLayout(Device& p_device) {
+    vkDestroyDescriptorSetLayout(p_device.getDevice(), descriptorSetLayout, nullptr);
 }
 
-VkShaderModule GraphicPipeline::createShaderModule(const std::vector<char>& code) {
+VkShaderModule GraphicPipeline::createShaderModule(const std::vector<char>& code, Device& p_device) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(Device::get().getDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(p_device.getDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create shader module!");
     }
 

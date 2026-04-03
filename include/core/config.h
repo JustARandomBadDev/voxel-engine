@@ -1,26 +1,15 @@
 #ifndef VULKAN_CONFIG_H
 #define VULKAN_CONFIG_H
 
-#include <vector>
-#include <cmath>
-
-#include "graphics/swapchain.h"
-
-// #define NDEBUG
-
-#ifdef NDEBUG
-const bool enableValidationLayers = false;  // Désactiver les layers en mode release
+#ifndef DEBUG
+    inline constexpr bool enableValidationLayers = false;
 #else
-const bool enableValidationLayers = true;   // Activer les layers en mode debug
+    inline constexpr bool enableValidationLayers = true;
 #endif
 
-const int RENDER_DISTANCE = 16;
-const int CHUNK_SIZE = 16;
-
-const int NB_FACE_CHUNK = std::pow(CHUNK_SIZE/2, 3) * 6;
-
-const int MARGIN_BLOCKS = 1; // coef multiplicateur
-
-#define FRAME_IN_FLIGHT Swapchain::get().getFramesInFlight()
+inline constexpr int RENDER_DISTANCE = 16;
+inline constexpr int CHUNK_SIZE      = 16;
+inline constexpr int NB_FACE_CHUNK   = (CHUNK_SIZE / 2) * (CHUNK_SIZE / 2) * (CHUNK_SIZE / 2) * 6;
+inline constexpr int MARGIN_BLOCKS   = 1;
 
 #endif // VULKAN_CONFIG_H

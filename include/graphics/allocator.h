@@ -12,10 +12,12 @@
 #include "graphics/vertex.h"
 #include "engine/mesh.h"
 
+class Device;
+
 class Allocator {
 public:
     Allocator() {}
-    Allocator(int p_flag, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging);
+    Allocator(int p_flag, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging, Device& p_device);
     
     void alloc(void* p_data, uint32_t p_size, uint32_t p_srcOffset, uint32_t p_dstOffset);
     
@@ -36,6 +38,7 @@ private:
     VkDeviceSize _size;
 
     std::optional<std::reference_wrapper<Buffer>> _staging;
+    Device* _device = nullptr;
 };
 
 #endif

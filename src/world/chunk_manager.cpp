@@ -14,12 +14,13 @@ Chunk* ChunkManager::addChunk(glm::ivec3 pos) {
     return chunks[id].get();
 }
 
-void ChunkManager::removeChunk(glm::ivec3 pos) {
+void ChunkManager::removeChunk(glm::ivec3 pos, BufferManager& p_buffer_manager) {
     std::string id = getStringFromIvec(pos);
-    Chunk* chunk = chunks[id].get();
+    auto it = chunks.find(id);
+    if (it == chunks.end() || !it->second) return;
 
-    chunk->cleanup();
-    chunks.erase(id);
+    it->second->cleanup(p_buffer_manager);
+    chunks.erase(it);
 }
 
 std::string ChunkManager::getStringFromIvec(glm::ivec3 v) {
@@ -28,13 +29,13 @@ std::string ChunkManager::getStringFromIvec(glm::ivec3 v) {
 
 void ChunkManager::update() {
     for (auto& [key, chunk] : chunks) {
-        chunk->update();
+        chunk->update(*this);
     }
 }
 
-void ChunkManager::upload() {
+void ChunkManager::upload(glm::vec3 p_camera_pos, BufferManager& p_buffer_manager) {
     for (auto& [key, chunk] : chunks) {
-        chunk->upload();
+        chunk->upload(p_camera_pos, p_buffer_manager);
     }
 }
 

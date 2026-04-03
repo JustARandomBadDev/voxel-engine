@@ -3,18 +3,18 @@
 
 #include <vulkan/vulkan.h>
 
+class Descriptor;
+class Device;
+class GraphicPipeline;
+class Renderer;
+
 class ComputePipeline {
 public:
-    static ComputePipeline& get() {
-        static ComputePipeline instance;
-        return instance;
-    }
-
-    void createComputePipeline();
-    void dispatchCompute();
-    void createDescriptorSetLayout();
-    void cleanup();
-    void cleanupDescriptorSetLayout();
+    void createComputePipeline(GraphicPipeline& p_graphic_pipeline, Device& p_device);
+    void dispatchCompute(Descriptor& p_descriptor, Renderer& p_renderer, Device& p_device);
+    void createDescriptorSetLayout(Device& p_device);
+    void cleanup(Device& p_device);
+    void cleanupDescriptorSetLayout(Device& p_device);
 
     const VkPipeline& getComputePipeline() const { return computePipeline; };
     const VkPipelineLayout& getComputePipelineLayout() const { return pipelineLayout; };

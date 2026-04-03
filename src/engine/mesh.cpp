@@ -30,7 +30,7 @@ void Mesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, Fac
 }
 
 void Mesh::addIndex() {
-    uint index_offset = _vertex.size();
+    uint32_t index_offset = _vertex.size();
 
     _index.insert(_index.end(), {
         index_offset + 0,

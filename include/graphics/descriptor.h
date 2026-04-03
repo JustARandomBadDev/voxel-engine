@@ -2,23 +2,23 @@
 #define DESCRIPTOR_MANAGER_H
 
 #include <vulkan/vulkan.h>
+#include <cstdint>
 #include <vector>
 
-#include "graphics/renderer.h"
+class BufferManager;
+class ComputePipeline;
+class Device;
+class GraphicPipeline;
+class Texture;
 
 class Descriptor {
 public:
-    static Descriptor& get() {
-        static Descriptor instance;
-        return instance;
-    }
-
-    void createDescriptorPool();
-    void createDescriptorSets();
-    void cleanup();
+    void createDescriptorPool(Device& p_device, uint32_t p_frames_in_flight);
+    void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_frames_in_flight);
+    void cleanup(Device& p_device);
 
     const std::vector<VkDescriptorSet>& getDescriptorSets() { return descriptorSets; }
-    const VkDescriptorSet& getComputeDescriptorSets() { return computeDescriptorSets[Renderer::get().getCurrentFrame()]; }
+    const VkDescriptorSet& getComputeDescriptorSets(uint32_t p_current_frame) { return computeDescriptorSets[p_current_frame]; }
 
 private:
     VkDescriptorPool descriptorPool;

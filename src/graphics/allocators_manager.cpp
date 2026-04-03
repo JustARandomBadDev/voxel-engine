@@ -9,12 +9,13 @@
 #include "graphics/buffer_manager.h"
 #include "engine/mesh.h"
 
-void AllocatorManager::init() {
+void AllocatorManager::init(Device& p_device) {
     _staging.createBuffer(1000000,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        p_device
     );
 
     uint32_t nbBlock = NB_FACE_CHUNK * std::pow(RENDER_DISTANCE, 2);
@@ -23,14 +24,16 @@ void AllocatorManager::init() {
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         nbBlock,
         static_cast<uint32_t>(NB_VERTEX_PER_BLOCK * sizeof(Vertex)),
-        _staging
+        _staging,
+        p_device
     );
 
     _indexAllocator = Allocator(
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
         nbBlock,
         static_cast<uint32_t>(NB_INDEX_PER_BLOCK * sizeof(uint32_t)),
-        _staging
+        _staging,
+        p_device
     );
 
     nbBlock = std::pow(RENDER_DISTANCE, 3);
@@ -39,7 +42,8 @@ void AllocatorManager::init() {
         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         nbBlock,
         static_cast<uint32_t>(sizeof(DrawIndirectCommand)),
-        _staging
+        _staging,
+        p_device
     );
 
     _id = 0;
@@ -48,7 +52,7 @@ void AllocatorManager::init() {
     _stagingOffset = 0;
 }
 
-int AllocatorManager::allocMesh(Mesh& mesh, int pid) {
+int AllocatorManager::allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager) {
     auto& vertex = mesh.getVertex();
     auto& index = mesh.getIndex();
     uint32_t nbBlock = static_cast<uint32_t>(vertex.size()) / NB_VERTEX_PER_BLOCK;
@@ -87,7 +91,7 @@ int AllocatorManager::allocMesh(Mesh& mesh, int pid) {
         uint32_t size = blocks * allocator.getBlockSize();
 
         if (stagingOffset + size > _staging.getSize()) {
-            BufferManager::get().applyCopies();
+            p_buffer_manager.applyCopies();
             stagingOffset = 0;
         }
         allocator.alloc(data, blocks, stagingOffset, dstOffset);

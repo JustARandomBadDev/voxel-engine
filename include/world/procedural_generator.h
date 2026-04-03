@@ -3,24 +3,25 @@
 
 #include <math.h>
 
-#include "world/chunk.h"
+#include "world/chunk_manager.h"
 #include "world/perlin_noise_2d.h"
 
 
-extern int   PROCEDURAL_OCTAVES;
-extern float PROCEDURAL_FREQUENCY;
-extern float PROCEDURAL_AMPLITUDE;
-extern float PROCEDURAL_PERSISTENCE;
-extern float PROCEDURAL_MULT_FREQUENCY;
+inline constexpr int   PROCEDURAL_OCTAVES = 2;
+inline constexpr float PROCEDURAL_FREQUENCY = 0.0054f;;
+inline constexpr float PROCEDURAL_AMPLITUDE = 128.f;;
+inline constexpr float PROCEDURAL_PERSISTENCE = 0.1f;;
+inline constexpr float PROCEDURAL_MULT_FREQUENCY = 12.f;;
 
 
 class ProceduralGenerator
 {
     private:
+        ChunkManager& chunk_manager;
         PerlinNoise2D perlin_noise;
     
     public:
-        ProceduralGenerator();
+        ProceduralGenerator(ChunkManager& p_chunk_manager);
 
         void generateChunk(glm::vec2 pos);
 };

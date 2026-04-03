@@ -3,18 +3,16 @@
 
 #include <vulkan/vulkan.h>
 
+class Device;
+class Renderer;
+class Swapchain;
 
 class Texture {
 public:
-    static Texture& get() {
-        static Texture instance;
-        return instance;
-    }
-
-    void createTextureImage();
-    void createTextureImageView();
-    void createTextureSampler();
-    void cleanup();
+    void createTextureImage(Renderer& p_renderer, Device& p_device);
+    void createTextureImageView(Swapchain& p_swapchain, Device& p_device);
+    void createTextureSampler(Device& p_device);
+    void cleanup(Device& p_device);
 
     VkImageView& getTextureImageView() { return textureImageView; }
     VkSampler& getTextureSampler() { return textureSampler; }
@@ -25,8 +23,8 @@ private:
     VkImageView textureImageView;
     VkSampler textureSampler;
 
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, Renderer& p_renderer, Device& p_device);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, Renderer& p_renderer, Device& p_device);
 };
 
 #endif // TEXTURE_MANAGER_HPP

@@ -4,15 +4,17 @@
 #include "engine/voxel_direction.h"
 #include "world/chunk_manager.h"
 
-void MeshBuilder::buildMeshes(Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE], glm::ivec3 p_chunk_pos) {
-    ChunkManager& cm = ChunkManager::get();
-
-    Chunk* cxp = cm.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
-    Chunk* cxm = cm.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
-    Chunk* cyp = cm.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});
-    Chunk* cym = cm.getChunk({p_chunk_pos.x,   p_chunk_pos.y-1, p_chunk_pos.z});
-    Chunk* czp = cm.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z+1});
-    Chunk* czm = cm.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z-1});
+void MeshBuilder::buildMeshes(
+    Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE],
+    glm::ivec3 p_chunk_pos,
+    ChunkManager& p_chunk_manager
+) {
+    Chunk* cxp = p_chunk_manager.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
+    Chunk* cxm = p_chunk_manager.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
+    Chunk* cyp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});
+    Chunk* cym = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y-1, p_chunk_pos.z});
+    Chunk* czp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z+1});
+    Chunk* czm = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z-1});
 
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {

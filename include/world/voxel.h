@@ -4,10 +4,10 @@
 #include <cstdint>
 
 struct Voxel {
-    uint16_t id;
-    bool transparent;
+    uint16_t id = 0;
+    bool transparent = false;
 
-    Voxel() {}
+    Voxel() = default;
 
     Voxel(uint16_t pid)
     : id(pid), transparent(false) {}

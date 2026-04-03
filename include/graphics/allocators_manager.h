@@ -12,6 +12,9 @@
 #include "graphics/allocator.h"
 #include "engine/mesh.h"
 
+class BufferManager;
+class Device;
+
 const uint32_t NB_VERTEX_PER_BLOCK = 4;
 const uint32_t NB_INDEX_PER_BLOCK = 6;
 
@@ -31,8 +34,8 @@ struct AllocInfo {
 
 class AllocatorManager {
 public:
-    void init();
-    int  allocMesh(Mesh& mesh, int pid);
+    void init(Device& p_device);
+    int  allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager);
     void freeMesh(int pid);
     void resetStagingOffset() { _stagingOffset = 0; };
 

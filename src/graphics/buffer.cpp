@@ -13,35 +13,36 @@
 #include "graphics/swapchain.h" 
 #include "graphics/buffer_manager.h"
 
-void Buffer::createBuffer(VkDeviceSize psize, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties) {
+void Buffer::createBuffer(VkDeviceSize psize, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, Device& p_device) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = psize;
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateBuffer(Device::get().getDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+    if (vkCreateBuffer(p_device.getDevice(), &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
         throw std::runtime_error("[ERROR] Buffer::createBuffer() -> failed to create buffer!");
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(Device::get().getDevice(), buffer, &memRequirements);
+    vkGetBufferMemoryRequirements(p_device.getDevice(), buffer, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = BufferManager::findMemoryType(memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = BufferManager::findMemoryType(memRequirements.memoryTypeBits, properties, p_device);
 
-    if (vkAllocateMemory(Device::get().getDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+    if (vkAllocateMemory(p_device.getDevice(), &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
         throw std::runtime_error("[ERROR] Buffer::createBuffer() -> failed to allocate buffer memory!");
     }
 
-    vkBindBufferMemory(Device::get().getDevice(), buffer, bufferMemory, 0);
+    vkBindBufferMemory(p_device.getDevice(), buffer, bufferMemory, 0);
 
     size = psize;
+    _device = &p_device;
 }
 
 void Buffer::cleanup() {
-    vkDestroyBuffer(Device::get().getDevice(), buffer, nullptr);
-    vkFreeMemory(Device::get().getDevice(), bufferMemory, nullptr);
+    vkDestroyBuffer(_device->getDevice(), buffer, nullptr);
+    vkFreeMemory(_device->getDevice(), bufferMemory, nullptr);
 }

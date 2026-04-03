@@ -7,11 +7,6 @@
 
 class Instance {
 public:
-    static Instance& get() {
-        static Instance instance;
-        return instance;
-    }
-
     void createInstance();
     void setupDebugMessenger();
     void createSurface(GLFWwindow* window);

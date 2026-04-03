@@ -7,10 +7,11 @@
 #include <glm/glm.hpp>
 
 struct Vertex;
+class Device;
 
 class Buffer {
 public:
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties);
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, Device& p_device);
     
     void cleanup();
 
@@ -22,6 +23,7 @@ private:
     VkBuffer buffer;
     VkDeviceMemory bufferMemory;
     VkDeviceSize size;
+    Device* _device = nullptr;
 };
 
 #endif // BUFFER_MANAGER_HPP

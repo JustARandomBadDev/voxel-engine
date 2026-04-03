@@ -3,25 +3,27 @@
 #include <array>
 #include <stdexcept>
 
-#include "core/config.h"
 #include "graphics/device.h"
 #include "graphics/graphic_pipeline.h"
+#include "graphics/instance.h"
+#include "graphics/swapchain.h"
 
-void Renderer::createCommandPool() {
-    QueueFamilyIndices queueFamilyIndices = Device::get().findQueueFamilies(Device::get().getPhysicalDevice());
+void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
+    QueueFamilyIndices queueFamilyIndices = p_device.findQueueFamilies(p_device.getPhysicalDevice(), p_instance);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsAndComputeFamily.value();
 
-    if (vkCreateCommandPool(Device::get().getDevice(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(p_device.getDevice(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics command pool!");
     }
 }
 
-void Renderer::createCommandBuffers() {
-    commandBuffers.resize(FRAME_IN_FLIGHT);
+void Renderer::createCommandBuffers(Device& p_device, uint32_t p_frames_in_flight) {
+    framesInFlight = p_frames_in_flight;
+    commandBuffers.resize(framesInFlight);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -29,12 +31,12 @@ void Renderer::createCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t) commandBuffers.size();
 
-    if (vkAllocateCommandBuffers(Device::get().getDevice(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, commandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
-    commandBufferState.resize(FRAME_IN_FLIGHT);
-    for (int i = 0; i < FRAME_IN_FLIGHT; i++) {
+    commandBufferState.resize(framesInFlight);
+    for (uint32_t i = 0; i < framesInFlight; i++) {
         commandBufferState.at(i) = false;
     }
 
@@ -44,13 +46,14 @@ void Renderer::createCommandBuffers() {
     copyAllocInfo.commandPool = commandPool;
     copyAllocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(Device::get().getDevice(), &copyAllocInfo, &copyCommandBuffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(p_device.getDevice(), &copyAllocInfo, &copyCommandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
     }
 }
 
-void Renderer::createComputeCommandBuffers() {
-    computeCommandBuffers.resize(FRAME_IN_FLIGHT);
+void Renderer::createComputeCommandBuffers(Device& p_device, uint32_t p_frames_in_flight) {
+    framesInFlight = p_frames_in_flight;
+    computeCommandBuffers.resize(framesInFlight);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -58,17 +61,18 @@ void Renderer::createComputeCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t)computeCommandBuffers.size();
 
-    if (vkAllocateCommandBuffers(Device::get().getDevice(), &allocInfo, computeCommandBuffers.data()) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, computeCommandBuffers.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate compute command buffers!");
     }
 }
 
-void Renderer::createSyncObjects() {
-    imageAvailableSemaphores.resize(FRAME_IN_FLIGHT);
-    renderFinishedSemaphores.resize(FRAME_IN_FLIGHT);
-    computeInFlightFences.resize(FRAME_IN_FLIGHT);
-    computeFinishedSemaphores.resize(FRAME_IN_FLIGHT);
-    inFlightFences.resize(FRAME_IN_FLIGHT);
+void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight) {
+    framesInFlight = p_frames_in_flight;
+    imageAvailableSemaphores.resize(framesInFlight);
+    renderFinishedSemaphores.resize(framesInFlight);
+    computeInFlightFences.resize(framesInFlight);
+    computeFinishedSemaphores.resize(framesInFlight);
+    inFlightFences.resize(framesInFlight);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -77,46 +81,46 @@ void Renderer::createSyncObjects() {
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (size_t i = 0; i < FRAME_IN_FLIGHT; i++) {
-        if (vkCreateSemaphore(Device::get().getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(Device::get().getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(Device::get().getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+    for (size_t i = 0; i < framesInFlight; i++) {
+        if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(p_device.getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create synchronization objects for a frame!");
         }
-        if (vkCreateSemaphore(Device::get().getDevice(), &semaphoreInfo, nullptr, &computeFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(Device::get().getDevice(), &fenceInfo, nullptr, &computeInFlightFences[i]) != VK_SUCCESS) {
+        if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &computeFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(p_device.getDevice(), &fenceInfo, nullptr, &computeInFlightFences[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create compute synchronization objects for a frame!");
         }
     }
 }
 
-void Renderer::createFramebuffers() {
-    for (size_t i = 0; i < Swapchain::get().getSwapChainImageViews().size(); i++) {
+void Renderer::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain& p_swapchain, Device& p_device) {
+    for (size_t i = 0; i < p_swapchain.getSwapChainImageViews().size(); i++) {
         std::array<VkImageView, 2> attachments = {
-            Swapchain::get().getSwapChainImageViews()[i],
-            Device::get().getDepthImageView()
+            p_swapchain.getSwapChainImageViews()[i],
+            p_device.getDepthImageView()
         };
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = GraphicPipeline::get().getRenderPass();
+        framebufferInfo.renderPass = p_graphic_pipeline.getRenderPass();
         framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
         framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = Swapchain::get().getSwapChainExtent().width;
-        framebufferInfo.height = Swapchain::get().getSwapChainExtent().height;
+        framebufferInfo.width = p_swapchain.getSwapChainExtent().width;
+        framebufferInfo.height = p_swapchain.getSwapChainExtent().height;
         framebufferInfo.layers = 1;
 
         VkFramebuffer frameBuffer;
-        if (vkCreateFramebuffer(Device::get().getDevice(), &framebufferInfo, nullptr, &frameBuffer) != VK_SUCCESS) {
+        if (vkCreateFramebuffer(p_device.getDevice(), &framebufferInfo, nullptr, &frameBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to create framebuffer!");
         }
 
-        Swapchain::get().addSwapChainFramebuffers(frameBuffer);
+        p_swapchain.addSwapChainFramebuffers(frameBuffer);
     }
 }
 
 void Renderer::resetCommandBuffers() {
-    for (int i = 0; i < FRAME_IN_FLIGHT; i++) {
+    for (uint32_t i = 0; i < framesInFlight; i++) {
         commandBufferState[i] = false;
     }
 }
@@ -125,18 +129,18 @@ void Renderer::resetCopyCommandBuffer() {
     vkResetCommandBuffer(copyCommandBuffer, 0);
 }
 
-void Renderer::cleanup() {
-    for (size_t i = 0; i < FRAME_IN_FLIGHT; i++) {
-        vkDestroySemaphore(Device::get().getDevice(), renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(Device::get().getDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(Device::get().getDevice(), computeFinishedSemaphores[i], nullptr);
-        vkDestroyFence(Device::get().getDevice(), inFlightFences[i], nullptr);
-        vkDestroyFence(Device::get().getDevice(), computeInFlightFences[i], nullptr);
+void Renderer::cleanup(Device& p_device) {
+    for (size_t i = 0; i < framesInFlight; i++) {
+        vkDestroySemaphore(p_device.getDevice(), renderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(p_device.getDevice(), imageAvailableSemaphores[i], nullptr);
+        vkDestroySemaphore(p_device.getDevice(), computeFinishedSemaphores[i], nullptr);
+        vkDestroyFence(p_device.getDevice(), inFlightFences[i], nullptr);
+        vkDestroyFence(p_device.getDevice(), computeInFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(Device::get().getDevice(), commandPool, nullptr);
+    vkDestroyCommandPool(p_device.getDevice(), commandPool, nullptr);
 }
 
 void Renderer::incrementeCurrentFrame() {
-    currentFrame = (currentFrame + 1) % FRAME_IN_FLIGHT;
+    currentFrame = (currentFrame + 1) % framesInFlight;
 }

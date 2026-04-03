@@ -7,20 +7,18 @@
 
 #include "graphics/light.h"
 
+class Device;
+class Swapchain;
+
 class GraphicPipeline {
 public:
-    static GraphicPipeline& get() {
-        static GraphicPipeline instance; 
-        return instance;
-    }
+    void createRenderPass(Swapchain& p_swapchain, Device& p_device);
+    void createDescriptorSetLayout(Device& p_device);
+    void createGraphicsPipeline(Device& p_device);
+    void cleanup(Device& p_device);
+    void cleanupDescriptorSetLayout(Device& p_device);
 
-    void createRenderPass();
-    void createDescriptorSetLayout();
-    void createGraphicsPipeline();
-    void cleanup();
-    void cleanupDescriptorSetLayout();
-
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    VkShaderModule createShaderModule(const std::vector<char>& code, Device& p_device);
     static std::vector<char> readFile(const std::string& filename);
 
     VkRenderPass getRenderPass() const { return renderPass; }

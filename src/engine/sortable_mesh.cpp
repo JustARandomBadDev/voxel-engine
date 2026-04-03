@@ -3,8 +3,6 @@
 #include <iostream>
 #include <algorithm>
 
-#include "graphics/app.h"
-
 void SortableMesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, FaceTextureData p_uv, float p_shininess) {
     glm::vec3 face_pos = p_pos + ((p_face_pos.v[0] + p_face_pos.v[1] + p_face_pos.v[2] + p_face_pos.v[3]) / 4.0f);
 
@@ -20,9 +18,9 @@ void SortableMesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_nor
     });
 }
 
-void SortableMesh::sort() {
+void SortableMesh::sort(glm::vec3 p_camera_pos) {
     for (FaceData& face : _faces) {
-        face.distance = glm::distance(VulkanApp::get().getCamera()->getPosition(), face.center);
+        face.distance = glm::distance(p_camera_pos, face.center);
     }
 
     std::sort(_faces.begin(), _faces.end(), [](const FaceData& a, const FaceData& b) {

@@ -14,19 +14,17 @@ struct QueueFamilyIndices {
     }
 };
 
+class Instance;
+class Swapchain;
+
 class Device {
 public:
-    static Device& get() {
-        static Device instance; 
-        return instance;
-    }
-
-    void pickPhysicalDevice();
-    void createLogicalDevice();
-    void createDepthResources();
+    void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);
+    void createLogicalDevice(Instance& p_instance);
+    void createDepthResources(Swapchain& p_swapchain);
     void cleanup();
 
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice);
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance);
     VkFormat findDepthFormat();
 
     VkPhysicalDevice& getPhysicalDevice() { return physicalDevice; }
@@ -51,10 +49,9 @@ private:
     VkDeviceMemory depthImageMemory;
     VkImageView depthImageView;
 
-    bool isDeviceSuitable(VkPhysicalDevice pdevice);
+    bool isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain);
     bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice);
     VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 };
 
 #endif // VULKAN_DEVICE_H
-

@@ -4,22 +4,22 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+class Device;
+class GraphicPipeline;
+class Instance;
+class Swapchain;
+
 class Renderer {
 public:
-    static Renderer& get() {
-        static Renderer instance;
-        return instance;
-    }
-
-    void createCommandPool();
-    void createCommandBuffers();
+    void createCommandPool(Device& p_device, Instance& p_instance);
+    void createCommandBuffers(Device& p_device, uint32_t p_frames_in_flight);
     void createComputeCommandPool(uint32_t computeQueueFamily);
-    void createComputeCommandBuffers();
-    void createSyncObjects();
-    void createFramebuffers();
+    void createComputeCommandBuffers(Device& p_device, uint32_t p_frames_in_flight);
+    void createSyncObjects(Device& p_device, uint32_t p_frames_in_flight);
+    void createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain& p_swapchain, Device& p_device);
     void resetCommandBuffers();
     void resetCopyCommandBuffer();
-    void cleanup();
+    void cleanup(Device& p_device);
 
     const VkCommandPool& getCommandPool() { return commandPool; }
 
@@ -62,7 +62,8 @@ private:
 
     VkCommandBuffer copyCommandBuffer;
 
-    uint32_t currentFrame;    
+    uint32_t framesInFlight = 0;
+    uint32_t currentFrame = 0;
 };
 
 #endif // VULKAN_RENDERER_HPP

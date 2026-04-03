@@ -1,15 +1,9 @@
 #include "world/procedural_generator.h"
 
 #include "core/config.h"
-#include "world/chunk_manager.h"
 
-int   PROCEDURAL_OCTAVES = 2;
-float PROCEDURAL_FREQUENCY = 0.0054;
-float PROCEDURAL_AMPLITUDE = 128;
-float PROCEDURAL_PERSISTENCE = 0.1;
-float PROCEDURAL_MULT_FREQUENCY = 12;
-
-ProceduralGenerator::ProceduralGenerator() {
+ProceduralGenerator::ProceduralGenerator(ChunkManager& p_chunk_manager)
+: chunk_manager(p_chunk_manager) {
     perlin_noise = PerlinNoise2D();
 }
 
@@ -18,8 +12,8 @@ void ProceduralGenerator::generateChunk(glm::vec2 pos) {
 
     auto getOrCreateChunk = [&](int y_index) -> Chunk* {
         if (local_chunks.count(y_index)) return local_chunks[y_index];
-        Chunk* c = ChunkManager::get().getChunk({pos.x, y_index, pos.y});
-        if (!c) c = ChunkManager::get().addChunk({pos.x, y_index, pos.y});
+        Chunk* c = chunk_manager.getChunk({pos.x, y_index, pos.y});
+        if (!c) c = chunk_manager.addChunk({pos.x, y_index, pos.y});
         return local_chunks[y_index] = c;
     };
 
@@ -27,8 +21,8 @@ void ProceduralGenerator::generateChunk(glm::vec2 pos) {
     float amplitudes[PROCEDURAL_OCTAVES];
 
     for (int i = 0; i < PROCEDURAL_OCTAVES; i++) {
-        frequencies[i] = PROCEDURAL_FREQUENCY * std::pow(PROCEDURAL_MULT_FREQUENCY, i);
-        amplitudes[i] = PROCEDURAL_AMPLITUDE * std::pow(PROCEDURAL_PERSISTENCE, i);
+        frequencies[i] = PROCEDURAL_FREQUENCY * static_cast<float>(std::pow(PROCEDURAL_MULT_FREQUENCY, i));
+        amplitudes[i] = PROCEDURAL_AMPLITUDE * static_cast<float>(std::pow(PROCEDURAL_PERSISTENCE, i));
     }
 
     for (int x = 0; x < CHUNK_SIZE; x++) {

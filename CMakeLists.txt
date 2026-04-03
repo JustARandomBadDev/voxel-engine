@@ -1,15 +1,15 @@
-cmake_minimum_required(VERSION 4.1)
-cmake_policy(VERSION 4.1)
-set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-
+cmake_minimum_required(VERSION 3.20)
 project(MinecraftVulkan VERSION 1.0 LANGUAGES CXX)
 
+# -----------------------------
+# C++ standard
+# -----------------------------
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # -----------------------------
-# Options de compilation
+# Warnings
 # -----------------------------
 if(MSVC)
     add_compile_options(/W4 /permissive-)
@@ -18,7 +18,7 @@ else()
 endif()
 
 # -----------------------------
-# FetchContent pour les libs
+# Dependencies
 # -----------------------------
 include(FetchContent)
 
@@ -30,78 +30,90 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-# stb_image (header-only)
-FetchContent_Declare(
-    stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG master
-)
-FetchContent_MakeAvailable(stb)
-
 # GLFW
 FetchContent_Declare(
     glfw
     GIT_REPOSITORY https://github.com/glfw/glfw.git
     GIT_TAG 3.3.10
 )
+
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS    OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_DOCS     OFF CACHE BOOL "" FORCE)
+
 FetchContent_MakeAvailable(glfw)
 
+# -----------------------------
 # Vulkan
+# -----------------------------
 find_package(Vulkan REQUIRED)
 
 # -----------------------------
-# Sources et headers
+# Sources
 # -----------------------------
-file(GLOB_RECURSE CORE_SRC src/core/*.cpp)
-file(GLOB_RECURSE ENGINE_SRC src/engine/*.cpp)
-file(GLOB_RECURSE GRAPHICS_SRC src/graphics/*.cpp)
-file(GLOB_RECURSE WORLD_SRC src/world/*.cpp)
-set(SRC_FILES
-    src/main.cpp
-    ${CORE_SRC}
-    ${ENGINE_SRC}
-    ${GRAPHICS_SRC}
-    ${WORLD_SRC}
+file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
+    src/*.cpp
 )
 
-file(GLOB_RECURSE CORE_INC include/core/*.h)
-file(GLOB_RECURSE ENGINE_INC include/engine/*.h)
-file(GLOB_RECURSE GRAPHICS_INC include/graphics/*.h)
-file(GLOB_RECURSE WORLD_INC include/world/*.h)
-set(INC_DIRS
-    include
-    ${glm_SOURCE_DIR}
-    ${stb_SOURCE_DIR}
+file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS
+    include/*.h
 )
 
 # -----------------------------
 # Executable
 # -----------------------------
-add_executable(${PROJECT_NAME} ${SRC_FILES} ${CORE_INC} ${ENGINE_INC} ${GRAPHICS_INC} ${WORLD_INC})
+add_executable(${PROJECT_NAME}
+    ${SRC_FILES}
+    ${HEADER_FILES}
+)
 
 # -----------------------------
-# Include directories
+# Include dirs
 # -----------------------------
-target_include_directories(${PROJECT_NAME} PRIVATE ${INC_DIRS})
+target_include_directories(${PROJECT_NAME} PRIVATE
+    include
+)
 
 # -----------------------------
-# Link libraries cross-platform
+# stb (header-only)
 # -----------------------------
-if(WIN32)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw glm)
-elseif(APPLE)
-    find_library(COCOA_FRAMEWORK Cocoa)
-    find_library(IOKIT_FRAMEWORK IOKit)
-    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
-    find_library(COREVIDEO_FRAMEWORK CoreVideo)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw glm
-        ${COCOA_FRAMEWORK} ${IOKIT_FRAMEWORK} ${COREFOUNDATION_FRAMEWORK} ${COREVIDEO_FRAMEWORK})
-else() # Linux / Unix
+target_include_directories(${PROJECT_NAME} PRIVATE
+    ${CMAKE_SOURCE_DIR}/external
+)
+
+# -----------------------------
+# Libraries
+# -----------------------------
+target_link_libraries(${PROJECT_NAME} PRIVATE
+    Vulkan::Vulkan
+    glfw
+    glm
+)
+
+# -----------------------------
+# Platform-specific
+# -----------------------------
+if(UNIX AND NOT APPLE)
     find_package(Threads REQUIRED)
-    target_link_libraries(${PROJECT_NAME} PRIVATE Vulkan::Vulkan glfw glm Threads::Threads dl)
+    target_link_libraries(${PROJECT_NAME} PRIVATE Threads::Threads dl)
+elseif(APPLE)
+    find_library(COCOA Cocoa REQUIRED)
+    find_library(IOKIT IOKit REQUIRED)
+    find_library(COREFOUNDATION CoreFoundation REQUIRED)
+    find_library(COREVIDEO CoreVideo REQUIRED)
+
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+        ${COCOA}
+        ${IOKIT}
+        ${COREFOUNDATION}
+        ${COREVIDEO}
+    )
 endif()
 
 # -----------------------------
-# Definitions pour STB
+# Definitions
 # -----------------------------
-target_compile_definitions(${PROJECT_NAME} PRIVATE STB_IMAGE_IMPLEMENTATION)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    GLM_FORCE_RADIANS
+    GLM_FORCE_DEPTH_ZERO_TO_ONE
+)

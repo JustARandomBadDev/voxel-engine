@@ -25,11 +25,6 @@
 
 class VulkanApp {
 public:
-    static VulkanApp& get() {
-        static VulkanApp instance;
-        return instance;
-    }
-
     void init(glm::vec3 posCamera, float fov);
     void render();
     void drawFrame();
@@ -43,12 +38,24 @@ public:
     GLFWwindow* getWindow() const { return window; }
     const float getDeltaTime() const { return deltaTime; }
     Camera* getCamera() { return &camera; }
+    BufferManager& getBufferManager() { return bufferManager; }
+    Renderer& getRenderer() { return renderer; }
 
     VulkanApp()
     : camera({0, 0, 0}, 0, 0) {};
 
 private:
     GLFWwindow* window;
+
+    Instance instance;
+    Device device;
+    BufferManager bufferManager;
+    Renderer renderer;
+    Swapchain swapchain;
+    Texture texture;
+    Descriptor descriptor;
+    GraphicPipeline graphicPipeline;
+    ComputePipeline computePipeline;
 
     Camera camera;
 

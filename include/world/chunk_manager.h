@@ -8,18 +8,15 @@
 
 #include "world/chunk.h"
 
+class BufferManager;
+
 class ChunkManager {
 public:
-    static ChunkManager& get() {
-        static ChunkManager instance;
-        return instance;
-    }
-
     Chunk* addChunk(glm::ivec3 pos);
-    void removeChunk(glm::ivec3 pos);
+    void removeChunk(glm::ivec3 pos, BufferManager& p_buffer_manager);
 
     void update();
-    void upload();
+    void upload(glm::vec3 p_camera_pos, BufferManager& p_buffer_manager);
 
     static std::string getStringFromIvec(glm::ivec3 v);
 

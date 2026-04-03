@@ -3,16 +3,20 @@
 #include <iostream>
 #include <string.h>
 
-#include "core/config.h"
 #include "graphics/vertex.h"
 #include "graphics/renderer.h"
 #include "graphics/device.h"
 
 std::vector<CopyInfo> BufferManager::pendingCopy;
 
+void BufferManager::configure(Device& p_device, Renderer& p_renderer) {
+    _device = &p_device;
+    _renderer = &p_renderer;
+}
+
 void BufferManager::createBuffers() {
-    _opaque_allocator.init();
-    _transparent_allocator.init();
+    _opaque_allocator.init(*_device);
+    _transparent_allocator.init(*_device);
 
     VkDeviceSize bufferSize = 1;
 
@@ -20,27 +24,29 @@ void BufferManager::createBuffers() {
                             VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                             VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                            *_device
     );
 
     updateVoxelBuffer.createBuffer(bufferSize,
                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT |
                                 VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                 VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                *_device
     );
 }
 
-void BufferManager::createUniformBuffers() {
-    uniformBuffers.resize(FRAME_IN_FLIGHT);
+void BufferManager::createUniformBuffers(uint32_t p_frames_in_flight) {
+    uniformBuffers.resize(p_frames_in_flight);
 
-    for (size_t i = 0; i < FRAME_IN_FLIGHT; i++) {
-        uniformBuffers[i].createUniformBuffer();
+    for (size_t i = 0; i < p_frames_in_flight; i++) {
+        uniformBuffers[i].createUniformBuffer(*_device);
     }
 }
 
-void BufferManager::updateUniformBuffer(glm::vec3 camPos, glm::mat4 matrix, glm::vec3 sunPos, glm::vec3 moonPos) {
-    uniformBuffers.at(Renderer::get().getCurrentFrame()).updateUniformBuffer(camPos, matrix, sunPos, moonPos);
+void BufferManager::updateUniformBuffer(uint32_t p_current_frame, glm::vec3 camPos, glm::mat4 matrix, glm::vec3 sunPos, glm::vec3 moonPos) {
+    uniformBuffers.at(p_current_frame).updateUniformBuffer(camPos, matrix, sunPos, moonPos);
 }
 
 void BufferManager::applyCopies() {
@@ -50,34 +56,34 @@ void BufferManager::applyCopies() {
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(Renderer::get().getCopyCommandBuffer(), &beginInfo);
+    vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo);
 
     for (CopyInfo infos : pendingCopy) {
         VkBufferCopy copyRegion {};
         copyRegion.size = infos.size;
         copyRegion.srcOffset = infos.srcOffset;
         copyRegion.dstOffset = infos.dstOffset;
-        vkCmdCopyBuffer(Renderer::get().getCopyCommandBuffer(), infos.srcBuffer, infos.dstBuffer, 1, &copyRegion);
+        vkCmdCopyBuffer(_renderer->getCopyCommandBuffer(), infos.srcBuffer, infos.dstBuffer, 1, &copyRegion);
     }
 
     pendingCopy.clear();
 
-    vkEndCommandBuffer(Renderer::get().getCopyCommandBuffer());
+    vkEndCommandBuffer(_renderer->getCopyCommandBuffer());
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &Renderer::get().getCopyCommandBuffer();
+    submitInfo.pCommandBuffers = &_renderer->getCopyCommandBuffer();
 
-    vkQueueSubmit(Device::get().getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(Device::get().getGraphicsQueue());
+    vkQueueSubmit(_device->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(_device->getGraphicsQueue());
 
-    Renderer::get().resetCopyCommandBuffer();
+    _renderer->resetCopyCommandBuffer();
     _opaque_allocator.resetStagingOffset();
     _transparent_allocator.resetStagingOffset();
 }
 
-void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
+void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, Device& p_device) {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -93,23 +99,23 @@ void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    if (vkCreateImage(Device::get().getDevice(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
+    if (vkCreateImage(p_device.getDevice(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
         throw std::runtime_error("failed to create image!");
     }
 
     VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(Device::get().getDevice(), image, &memRequirements);
+    vkGetImageMemoryRequirements(p_device.getDevice(), image, &memRequirements);
 
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, p_device);
 
-    if (vkAllocateMemory(Device::get().getDevice(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+    if (vkAllocateMemory(p_device.getDevice(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate image memory!");
     }
 
-    vkBindImageMemory(Device::get().getDevice(), image, imageMemory, 0);
+    vkBindImageMemory(p_device.getDevice(), image, imageMemory, 0);
 }
 
 void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size) {
@@ -130,15 +136,15 @@ void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSiz
     });
 }
 
-VkCommandBuffer BufferManager::beginSingleTimeCommands() {
+VkCommandBuffer BufferManager::beginSingleTimeCommands(Renderer& p_renderer, Device& p_device) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = Renderer::get().getCommandPool();
+    allocInfo.commandPool = p_renderer.getCommandPool();
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(Device::get().getDevice(), &allocInfo, &commandBuffer);
+    vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, &commandBuffer);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -149,7 +155,7 @@ VkCommandBuffer BufferManager::beginSingleTimeCommands() {
     return commandBuffer;
 }
 
-void BufferManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
+void BufferManager::endSingleTimeCommands(VkCommandBuffer commandBuffer, Renderer& p_renderer, Device& p_device) {
     vkEndCommandBuffer(commandBuffer);
 
     VkSubmitInfo submitInfo{};
@@ -157,15 +163,15 @@ void BufferManager::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(Device::get().getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(Device::get().getGraphicsQueue());
+    vkQueueSubmit(p_device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(p_device.getGraphicsQueue());
 
-    vkFreeCommandBuffers(Device::get().getDevice(), Renderer::get().getCommandPool(), 1, &commandBuffer);
+    vkFreeCommandBuffers(p_device.getDevice(), p_renderer.getCommandPool(), 1, &commandBuffer);
 }
 
-uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, Device& p_device) {
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(Device::get().getPhysicalDevice(), &memProperties);
+    vkGetPhysicalDeviceMemoryProperties(p_device.getPhysicalDevice(), &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
         if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
@@ -184,7 +190,7 @@ void BufferManager::cleanupBuffers() {
 }
 
 void BufferManager::cleanupUniformBuffer() {
-    for (auto ubo : uniformBuffers) {
+    for (auto& ubo : uniformBuffers) {
         ubo.cleanup();
     }
 }

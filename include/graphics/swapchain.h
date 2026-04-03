@@ -11,20 +11,20 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+class Device;
+class GraphicPipeline;
+class Instance;
+class Renderer;
+
 class Swapchain {
 public:
-    static Swapchain& get() {
-        static Swapchain instance;
-        return instance;
-    }
+    void createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device);
+    void recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device);
+    void createImageViews(Device& p_device);
+    void cleanup(Device& p_device);
 
-    void createSwapChain(GLFWwindow* window);
-    void recreateSwapChain(GLFWwindow* window);
-    void createImageViews();
-    void cleanup();
-
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice);
-    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance);
+    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device);
 
     const VkSwapchainKHR&             getSwapChain() { return swapChain; }
     const VkFormat&                   getSwapChainImageFormat() { return swapChainImageFormat; }
@@ -32,7 +32,7 @@ public:
     const std::vector<VkImageView>&   getSwapChainImageViews() { return swapChainImageViews; }
     const std::vector<VkFramebuffer>& getSwapChainFramebuffers() { return swapChainFramebuffers; }
     const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }
-    const float                       getAspectRatio() const { return swapChainExtent.width/swapChainExtent.height; }
+    const float                       getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
     const uint32_t                    getFramesInFlight() const { return frames_in_flight; }
 
     void addSwapChainFramebuffers(VkFramebuffer pframeBuffer);

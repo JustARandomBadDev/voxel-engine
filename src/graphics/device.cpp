@@ -11,19 +11,19 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
-void Device::pickPhysicalDevice() {
+void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(Instance::get().getInstance(), &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
 
     if (deviceCount == 0) {
         throw std::runtime_error("failed to find GPUs with Vulkan support!");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(Instance::get().getInstance(), &deviceCount, devices.data());
+    vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, devices.data());
 
     for (const auto& pdevice : devices) {
-        if (isDeviceSuitable(pdevice)) {
+        if (isDeviceSuitable(pdevice, p_instance, p_swapchain)) {
             physicalDevice = pdevice;
             break;
         }
@@ -34,8 +34,8 @@ void Device::pickPhysicalDevice() {
     }
 }
 
-void Device::createLogicalDevice() {
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+void Device::createLogicalDevice(Instance& p_instance) {
+    QueueFamilyIndices indices = findQueueFamilies(physicalDevice, p_instance);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
     std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsAndComputeFamily.value(), indices.presentFamily.value()};
@@ -74,25 +74,25 @@ void Device::createLogicalDevice() {
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void Device::createDepthResources() {
+void Device::createDepthResources(Swapchain& p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
-    BufferManager::createImage(Swapchain::get().getSwapChainExtent().width, Swapchain::get().getSwapChainExtent().height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory);
-    depthImageView = Swapchain::get().createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+    BufferManager::createImage(p_swapchain.getSwapChainExtent().width, p_swapchain.getSwapChainExtent().height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, *this);
+    depthImageView = p_swapchain.createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, *this);
 }
 
 void Device::cleanup() {
     vkDestroyDevice(device, nullptr);
 }
 
-bool Device::isDeviceSuitable(VkPhysicalDevice pdevice) {
-    QueueFamilyIndices indices = findQueueFamilies(pdevice);
+bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) {
+    QueueFamilyIndices indices = findQueueFamilies(pdevice, p_instance);
 
     bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
 
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        SwapChainSupportDetails swapChainSupport = Swapchain::get().querySwapChainSupport(pdevice);
+        SwapChainSupportDetails swapChainSupport = p_swapchain.querySwapChainSupport(pdevice, p_instance);
         swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
     }
 
@@ -102,7 +102,7 @@ bool Device::isDeviceSuitable(VkPhysicalDevice pdevice) {
     return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy && supportedFeatures.multiDrawIndirect;
 }
 
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice) {
+QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) {
     QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
@@ -118,7 +118,7 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice) {
         }
 
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, Instance::get().getSurface(), &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(pdevice, i, p_instance.getSurface(), &presentSupport);
 
         if (presentSupport) {
             indices.presentFamily = i;
