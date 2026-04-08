@@ -1,9 +1,9 @@
 #include "engine/mesh_builder.h"
 
-#include "engine/chunk_neighborhood_view.h"
 #include "engine/voxel_data.h"
 #include "engine/voxel_direction.h"
 #include "world/chunk.h"
+#include "world/chunk_manager.h"
 
 bool MeshBuilder::shouldRender(
     int nx, int ny, int nz,
@@ -40,14 +40,14 @@ bool MeshBuilder::shouldRender(
 void MeshBuilder::buildMeshes(
     Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE],
     glm::ivec3 p_chunk_pos,
-    ChunkNeighborhoodView& p_chunk_neighborhood_view
+    ChunkManager& p_chunk_manager
 ) {
-    const Chunk* cxp = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
-    const Chunk* cxm = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
-    const Chunk* cyp = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});
-    const Chunk* cym = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x,   p_chunk_pos.y-1, p_chunk_pos.z});
-    const Chunk* czp = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z+1});
-    const Chunk* czm = p_chunk_neighborhood_view.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z-1});
+    const Chunk* cxp = p_chunk_manager.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
+    const Chunk* cxm = p_chunk_manager.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
+    const Chunk* cyp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});
+    const Chunk* cym = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y-1, p_chunk_pos.z});
+    const Chunk* czp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z+1});
+    const Chunk* czm = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y,   p_chunk_pos.z-1});
 
     for (int x = 0; x < CHUNK_SIZE; x++) {
         for (int y = 0; y < CHUNK_SIZE; y++) {

@@ -6,14 +6,14 @@
 #include "world/voxel.h"
 
 class Chunk;
-class ChunkNeighborhoodView;
+class ChunkManager;
 
 class MeshBuilder {
 public:
     void buildMeshes(
         Voxel (& voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE],
         glm::ivec3 p_chunk_pos,
-        ChunkNeighborhoodView& p_chunk_neighborhood_view
+        ChunkManager& p_chunk_neighborhood_view
     );
 
     Mesh& getOpaqueMesh() { return _opaque_mesh; }
