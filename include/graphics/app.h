@@ -9,6 +9,7 @@
 #include "core/config.h"
 #include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
+#include "graphics/chunk_render_state.h"
 #include "graphics/compute_pipeline.h"
 #include "graphics/descriptor.h"
 #include "graphics/device.h"
@@ -39,6 +40,7 @@ public:
     const float getDeltaTime() const { return deltaTime; }
     Camera* getCamera() { return &camera; }
     BufferManager& getBufferManager() { return bufferManager; }
+    ChunkRenderStateCache& getChunkRenderStateCache() { return chunkRenderStateCache; }
     Renderer& getRenderer() { return renderer; }
 
     VulkanApp()
@@ -50,6 +52,7 @@ private:
     Instance instance;
     Device device;
     BufferManager bufferManager;
+    ChunkRenderStateCache chunkRenderStateCache;
     Renderer renderer;
     Swapchain swapchain;
     Texture texture;

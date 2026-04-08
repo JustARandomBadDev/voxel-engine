@@ -112,6 +112,7 @@ void VulkanApp::cleanup() {
     texture.cleanup(device);
     graphicPipeline.cleanupDescriptorSetLayout(device);
     computePipeline.cleanupDescriptorSetLayout(device);
+    chunkRenderStateCache.cleanup(bufferManager);
     bufferManager.cleanupBuffers();
     renderer.cleanup(device);
     device.cleanup();

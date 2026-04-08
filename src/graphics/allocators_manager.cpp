@@ -52,9 +52,9 @@ void AllocatorManager::init(Device& p_device) {
     _stagingOffset = 0;
 }
 
-int AllocatorManager::allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager) {
-    auto& vertex = mesh.getVertex();
-    auto& index = mesh.getIndex();
+int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer_manager) {
+    auto& vertex = p_mesh.getVertex();
+    auto& index = p_mesh.getIndex();
     uint32_t nbBlock = static_cast<uint32_t>(vertex.size()) / NB_VERTEX_PER_BLOCK;
     uint32_t maxNbBlock = nbBlock * MARGIN_BLOCKS;
     
@@ -65,7 +65,7 @@ int AllocatorManager::allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_man
 
     AllocInfo infos;
 
-    int out = pid;
+    int out = p_pid;
     if (out == -1) {
         if (_freeId.empty()) {
             out = _id++;
@@ -87,15 +87,15 @@ int AllocatorManager::allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_man
     indirectCommand.vertexOffset = static_cast<uint32_t>(infos.dataBlock * NB_VERTEX_PER_BLOCK);
     indirectCommand.indexOffset = static_cast<uint32_t>(infos.dataBlock * NB_INDEX_PER_BLOCK);
 
-    auto tryAlloc = [&](Allocator& allocator, void* data, uint32_t blocks, uint32_t& stagingOffset, uint32_t dstOffset) {
-        uint32_t size = blocks * allocator.getBlockSize();
+    auto tryAlloc = [&](Allocator& p_allocator, void* p_data, uint32_t p_blocks, uint32_t& p_stagingOffset, uint32_t p_dest_offset) {
+        uint32_t size = p_blocks * p_allocator.getBlockSize();
 
-        if (stagingOffset + size > _staging.getSize()) {
+        if (p_stagingOffset + size > _staging.getSize()) {
             p_buffer_manager.applyCopies();
-            stagingOffset = 0;
+            p_stagingOffset = 0;
         }
-        allocator.alloc(data, blocks, stagingOffset, dstOffset);
-        stagingOffset += size;
+        p_allocator.alloc(p_data, p_blocks, p_stagingOffset, p_dest_offset);
+        p_stagingOffset += size;
     };
 
     tryAlloc(_vertexAllocator, vertex.data(), nbBlock, _stagingOffset, infos.dataBlock);
@@ -105,16 +105,16 @@ int AllocatorManager::allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_man
     return out;
 }
 
-void AllocatorManager::freeMesh(int pid) {
-    AllocInfo infos = _used[pid];
+void AllocatorManager::freeMesh(int p_pid) {
+    AllocInfo infos = _used[p_pid];
 
     _freeList.push_back(infos);
 
     freeIndirectBlock(infos.indirectBlock);
 
-    _used.erase(pid);
+    _used.erase(p_pid);
 
-    _freeId.push_back(pid);
+    _freeId.push_back(p_pid);
 }
 
 int AllocatorManager::availableAlloc(uint32_t p_nbBlock) {
@@ -130,7 +130,7 @@ int AllocatorManager::availableAlloc(uint32_t p_nbBlock) {
     return -1;
 }
 
-void AllocatorManager::newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, AllocInfo& p_infos, int p_id) {
+void AllocatorManager::newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, AllocInfo& p_infos, int p_pid) {
     int allocBlockId = availableAlloc(p_nbBlock);
 
     if (allocBlockId < 0) {
@@ -142,7 +142,7 @@ void AllocatorManager::newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, Alloc
             static_cast<uint32_t>(_nbIndirectBlock)
         };
     
-        _used[p_id] = p_infos;
+        _used[p_pid] = p_infos;
         
         _nbDataBlock += p_maxNbBlock;
         _nbIndirectBlock++;
@@ -152,7 +152,7 @@ void AllocatorManager::newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, Alloc
         p_infos = _freeList[allocBlockId];
         _freeList.erase(_freeList.begin()+allocBlockId);
 
-        _used[p_id] = p_infos;
+        _used[p_pid] = p_infos;
     }
 }
 

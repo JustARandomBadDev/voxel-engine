@@ -4,23 +4,20 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <functional>
 #include <glm/glm.hpp>
 
 #include "world/chunk.h"
 
-class BufferManager;
-
 class ChunkManager {
 public:
     Chunk* addChunk(glm::ivec3 pos);
-    void removeChunk(glm::ivec3 pos, BufferManager& p_buffer_manager);
-
-    void update();
-    void upload(glm::vec3 p_camera_pos, BufferManager& p_buffer_manager);
+    void removeChunk(glm::ivec3 pos);
 
     static std::string getStringFromIvec(glm::ivec3 v);
 
     Chunk* getChunk(glm::ivec3 pos);
+    void forEachChunk(const std::function<void(Chunk&)>& p_fn);
 
 private:
     std::unordered_map<std::string, std::unique_ptr<Chunk>> chunks;

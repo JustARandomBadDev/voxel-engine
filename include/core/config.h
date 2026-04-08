@@ -1,6 +1,8 @@
 #ifndef VULKAN_CONFIG_H
 #define VULKAN_CONFIG_H
 
+#define DEBUG
+
 #ifndef DEBUG
     inline constexpr bool enableValidationLayers = false;
 #else

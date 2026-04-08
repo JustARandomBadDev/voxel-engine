@@ -7,16 +7,30 @@
 #include <iostream>
 #include <thread>
 
+#include "engine/chunk_mesh_registry.h"
+#include "engine/chunk_mesher.h"
+#include "engine/chunk_render_sync.h"
 #include "graphics/app.h"
 #include "world/chunk_manager.h"
 #include "world/procedural_generator.h" 
 
-void update(ChunkManager& chunkManager) {
-    chunkManager.update();
+void update(ChunkManager& chunkManager, ChunkMesher& chunkMesher, ChunkMeshRegistry& chunkMeshRegistry) {
+    chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
 }
 
-void upload(ChunkManager& chunkManager, VulkanApp& app) {
-    chunkManager.upload(app.getCamera()->getPosition(), app.getBufferManager());
+void syncRender(
+    ChunkManager& chunkManager,
+    ChunkMeshRegistry& chunkMeshRegistry,
+    ChunkRenderSync& chunkRenderSync,
+    VulkanApp& app
+) {
+    chunkRenderSync.syncAll(
+        chunkManager,
+        chunkMeshRegistry,
+        app.getChunkRenderStateCache(),
+        app.getCamera()->getPosition(),
+        app.getBufferManager()
+    );
 }
 
 void procedural(ChunkManager& chunkManager) {
@@ -39,8 +53,12 @@ void test(ChunkManager& chunkManager, VulkanApp& app) {
         }
     }
 
-    chunk->update(chunkManager);
-    chunk->upload(app.getCamera()->getPosition(), app.getBufferManager());
+    ChunkMesher chunkMesher;
+    ChunkMeshRegistry chunkMeshRegistry;
+    ChunkRenderSync chunkRenderSync;
+
+    chunkMesher.updateChunk(*chunk, chunkManager, chunkMeshRegistry);
+    chunkRenderSync.syncChunk(*chunk, chunkMeshRegistry, app.getChunkRenderStateCache(), app.getCamera()->getPosition(), app.getBufferManager());
 }
 
 void test2(ChunkManager& chunkManager, VulkanApp& app) {
@@ -48,8 +66,12 @@ void test2(ChunkManager& chunkManager, VulkanApp& app) {
 
     chunk->addVoxel({0, 1, 0}, 3);
 
-    chunk->update(chunkManager);
-    chunk->upload(app.getCamera()->getPosition(), app.getBufferManager());
+    ChunkMesher chunkMesher;
+    ChunkMeshRegistry chunkMeshRegistry;
+    ChunkRenderSync chunkRenderSync;
+
+    chunkMesher.updateChunk(*chunk, chunkManager, chunkMeshRegistry);
+    chunkRenderSync.syncChunk(*chunk, chunkMeshRegistry, app.getChunkRenderStateCache(), app.getCamera()->getPosition(), app.getBufferManager());
 }
 
 void flat(ChunkManager& chunkManager) {
@@ -67,7 +89,9 @@ void flat(ChunkManager& chunkManager) {
     }
     chunk->addVoxel({0, 1, 0}, 1);
 
-    chunkManager.update();
+    ChunkMesher chunkMesher;
+    ChunkMeshRegistry chunkMeshRegistry;
+    chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
 }
 
 template<typename Func>
@@ -86,6 +110,9 @@ double timeOf(Func func, std::string msg) {
 void run() {
     VulkanApp app;
     ChunkManager chunkManager;
+    ChunkMesher chunkMesher;
+    ChunkMeshRegistry chunkMeshRegistry;
+    ChunkRenderSync chunkRenderSync;
 
     app.init({0, 10.0f, 0}, 70);
 
@@ -94,8 +121,8 @@ void run() {
     double total = 0;
 
     total += timeOf([&]() { procedural(chunkManager); }, "Temps de génération du monde : ");
-    total += timeOf([&]() { update(chunkManager); }, "Temps de crétion des mesh : ");
-    total += timeOf([&]() { upload(chunkManager, app); }, "Temps de d'allocation GPU : ");
+    total += timeOf([&]() { update(chunkManager, chunkMesher, chunkMeshRegistry); }, "Temps de crétion des mesh : ");
+    total += timeOf([&]() { syncRender(chunkManager, chunkMeshRegistry, chunkRenderSync, app); }, "Temps de d'allocation GPU : ");
     // total += timeOf(upload, "Temps de de réallocation GPU : ");
 
     std::cout << "Temps total : " << total << std::endl;
@@ -121,8 +148,14 @@ void run() {
             lastTime = currentTime;
         }
 
-        chunkManager.update();
-        chunkManager.upload(app.getCamera()->getPosition(), app.getBufferManager());
+        chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
+        chunkRenderSync.syncAll(
+            chunkManager,
+            chunkMeshRegistry,
+            app.getChunkRenderStateCache(),
+            app.getCamera()->getPosition(),
+            app.getBufferManager()
+        );
 
         app.getRenderer().resetCommandBuffers();
     

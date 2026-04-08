@@ -8,7 +8,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -38,19 +39,19 @@ jobs:
       # -------------------------
       # Windows deps
       # -------------------------
-      - name: Setup Vulkan SDK (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ver = "1.3.296.0"
-          $installer = "$env:TEMP\VulkanSDK-Installer.exe"
-          Invoke-WebRequest `
-            -Uri "https://sdk.lunarg.com/sdk/download/$ver/windows/VulkanSDK-$ver-Installer.exe" `
-            -OutFile $installer
-          & $installer --accept-licenses --default-answer --confirm-command install
-          $sdkPath = "C:\VulkanSDK\$ver"
-          echo "VULKAN_SDK=$sdkPath" >> $env:GITHUB_ENV
-          echo "$sdkPath\Bin"       >> $env:GITHUB_PATH
+      # - name: Setup Vulkan SDK (Windows)
+      #   if: runner.os == 'Windows'
+      #   shell: pwsh
+      #   run: |
+      #     $ver = "1.3.296.0"
+      #     $installer = "$env:TEMP\VulkanSDK-Installer.exe"
+      #     Invoke-WebRequest `
+      #       -Uri "https://sdk.lunarg.com/sdk/download/$ver/windows/VulkanSDK-$ver-Installer.exe" `
+      #       -OutFile $installer
+      #     & $installer --accept-licenses --default-answer --confirm-command install
+      #     $sdkPath = "C:\VulkanSDK\$ver"
+      #     echo "VULKAN_SDK=$sdkPath" >> $env:GITHUB_ENV
+      #     echo "$sdkPath\Bin"       >> $env:GITHUB_PATH
 
       # -------------------------
       # Configure
@@ -77,13 +78,13 @@ jobs:
       # -------------------------
       # Package (Windows)
       # -------------------------
-      - name: Package (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path package
-          Copy-Item build\Release\MinecraftVulkan.exe package\
-          Copy-Item -Recurse res package\
+      # - name: Package (Windows)
+      #   if: runner.os == 'Windows'
+      #   shell: pwsh
+      #   run: |
+      #     New-Item -ItemType Directory -Force -Path package
+      #     Copy-Item build\Release\MinecraftVulkan.exe package\
+      #     Copy-Item -Recurse res package\
 
       # -------------------------
       # Upload artifact
