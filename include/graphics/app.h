@@ -32,7 +32,7 @@ public:
     void recordCommandBuffer(uint32_t imageIndex);
     void cleanup();
 
-    bool isRun() { return !glfwWindowShouldClose(window); };
+    bool isRun() const { return !glfwWindowShouldClose(window); };
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 

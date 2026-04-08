@@ -23,7 +23,7 @@ private:
     Mesh _opaque_mesh;
     SortableMesh _transparent_mesh;
 
-    bool shouldRender(int nx, int ny, int nz, Chunk* neighborChunk, const VoxelData& data,
+    bool shouldRender(int nx, int ny, int nz, const Chunk* neighborChunk, const VoxelData& data,
     const Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE]);
 };
 

@@ -17,6 +17,7 @@ public:
     static std::string getStringFromIvec(glm::ivec3 v);
 
     Chunk* getChunk(glm::ivec3 pos);
+    const Chunk* getChunk(glm::ivec3 pos) const;
     void forEachChunk(const std::function<void(Chunk&)>& p_fn);
 
 private:

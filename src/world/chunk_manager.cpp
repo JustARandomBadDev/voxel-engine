@@ -34,3 +34,10 @@ Chunk* ChunkManager::getChunk(glm::ivec3 pos) {
     if (it == chunks.end() || !it->second) return nullptr;
     return it->second.get();
 };
+
+const Chunk* ChunkManager::getChunk(glm::ivec3 pos) const {
+    std::string id = getStringFromIvec(pos);
+    auto it = chunks.find(id);
+    if (it == chunks.end() || !it->second) return nullptr;
+    return it->second.get();
+};

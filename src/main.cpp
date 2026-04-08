@@ -1,97 +1,80 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
+#include <chrono>
+#include <cmath>
 #include <iostream>
-#include <thread>
+#include <string>
 
-#include "engine/chunk_mesh_registry.h"
-#include "engine/chunk_mesher.h"
-#include "engine/chunk_render_sync.h"
-#include "graphics/app.h"
-#include "world/chunk_manager.h"
-#include "world/procedural_generator.h" 
+#include "engine/voxel_engine.h"
+#include "world/perlin_noise_2d.h"
+#include "world/procedural_generator.h"
 
-void update(ChunkManager& chunkManager, ChunkMesher& chunkMesher, ChunkMeshRegistry& chunkMeshRegistry) {
-    chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
-}
-
-void syncRender(
-    ChunkManager& chunkManager,
-    ChunkMeshRegistry& chunkMeshRegistry,
-    ChunkRenderSync& chunkRenderSync,
-    VulkanApp& app
-) {
-    chunkRenderSync.syncAll(
-        chunkManager,
-        chunkMeshRegistry,
-        app.getChunkRenderStateCache(),
-        app.getCamera()->getPosition(),
-        app.getBufferManager()
-    );
-}
-
-void procedural(ChunkManager& chunkManager) {
+void procedural(VoxelEngine& engine) {
     int size = 27;
-    ProceduralGenerator p(chunkManager);
+    PerlinNoise2D perlin_noise;
+
     for (int x = -(size/2); x < size/2; x++) {
         for (int y = -(size/2); y < size/2; y++) {
-            p.generateChunk({x, y});
-        }
-    }
-}
+            glm::ivec2 pos = {x, y};
 
-void test(ChunkManager& chunkManager, VulkanApp& app) {
-    Chunk* chunk = chunkManager.addChunk({0, 6, 0});
+            float frequencies[PROCEDURAL_OCTAVES];
+            float amplitudes[PROCEDURAL_OCTAVES];
 
-    for (int x = 0; x < CHUNK_SIZE; x++) {
-        for (int z = 0; z < CHUNK_SIZE; z++) {
-            chunk->addVoxel({x, 0, z}, 7);
-            chunk->addVoxel({x, 1, z}, 8);
-        }
-    }
+            for (int i = 0; i < PROCEDURAL_OCTAVES; i++) {
+                frequencies[i] = PROCEDURAL_FREQUENCY * static_cast<float>(std::pow(PROCEDURAL_MULT_FREQUENCY, i));
+                amplitudes[i] = PROCEDURAL_AMPLITUDE * static_cast<float>(std::pow(PROCEDURAL_PERSISTENCE, i));
+            }
 
-    ChunkMesher chunkMesher;
-    ChunkMeshRegistry chunkMeshRegistry;
-    ChunkRenderSync chunkRenderSync;
+            for (int vx = 0; vx < CHUNK_SIZE; vx++) {
+                for (int vz = 0; vz < CHUNK_SIZE; vz++) {
+                    float total = 0.0f;
 
-    chunkMesher.updateChunk(*chunk, chunkManager, chunkMeshRegistry);
-    chunkRenderSync.syncChunk(*chunk, chunkMeshRegistry, app.getChunkRenderStateCache(), app.getCamera()->getPosition(), app.getBufferManager());
-}
+                    for (int i = 0; i < PROCEDURAL_OCTAVES; i++) {
+                        float fx = (pos.x * CHUNK_SIZE + vx) * frequencies[i];
+                        float fz = (pos.y * CHUNK_SIZE + vz) * frequencies[i];
+                        total += perlin_noise.noise_2d(fx, fz) * amplitudes[i];
+                    }
 
-void test2(ChunkManager& chunkManager, VulkanApp& app) {
-    Chunk* chunk = chunkManager.addChunk({0, 6, 0});
+                    int height = static_cast<int>(total);
 
-    chunk->addVoxel({0, 1, 0}, 3);
+                    int voxel_start = 0;
+                    int voxel_end = 0;
 
-    ChunkMesher chunkMesher;
-    ChunkMeshRegistry chunkMeshRegistry;
-    ChunkRenderSync chunkRenderSync;
+                    if (height <= 50) {
+                        voxel_end = height - 5;
+                        for (int vy = voxel_start; vy < voxel_end; ++vy) {
+                            engine.setVoxel({pos.x, vy / CHUNK_SIZE, pos.y}, {vx, vy % CHUNK_SIZE, vz}, 3);
+                        }
 
-    chunkMesher.updateChunk(*chunk, chunkManager, chunkMeshRegistry);
-    chunkRenderSync.syncChunk(*chunk, chunkMeshRegistry, app.getChunkRenderStateCache(), app.getCamera()->getPosition(), app.getBufferManager());
-}
+                        voxel_start = voxel_end;
+                        voxel_end = height + 1;
+                        for (int vy = voxel_start; vy < voxel_end; ++vy) {
+                            engine.setVoxel({pos.x, vy / CHUNK_SIZE, pos.y}, {vx, vy % CHUNK_SIZE, vz}, 9);
+                        }
 
-void flat(ChunkManager& chunkManager) {
-    Chunk* chunk;
-    for (int cx = 0; cx < 1; cx++) {
-        for (int cy = 0; cy < 1; cy++) {
-            chunk = chunkManager.addChunk({cx, 0, cy});
+                        voxel_start = voxel_end;
+                        voxel_end = 48;
+                        for (int vy = voxel_start; vy < voxel_end; ++vy) {
+                            engine.setVoxel({pos.x, vy / CHUNK_SIZE, pos.y}, {vx, vy % CHUNK_SIZE, vz}, 8);
+                        }
+                    } else {
+                        voxel_end = height - 2;
+                        for (int vy = voxel_start; vy < voxel_end; ++vy) {
+                            engine.setVoxel({pos.x, vy / CHUNK_SIZE, pos.y}, {vx, vy % CHUNK_SIZE, vz}, 3);
+                        }
 
-            for (int x = 0; x < CHUNK_SIZE; x++) {
-                for (int z = 0; z < CHUNK_SIZE; z++) {
-                    chunk->addVoxel({x, 0, z}, 1);
+                        voxel_start = voxel_end;
+                        voxel_end = height;
+                        for (int vy = voxel_start; vy < voxel_end; ++vy) {
+                            engine.setVoxel({pos.x, vy / CHUNK_SIZE, pos.y}, {vx, vy % CHUNK_SIZE, vz}, 2);
+                        }
+
+                        engine.setVoxel({pos.x, height / CHUNK_SIZE, pos.y}, {vx, height % CHUNK_SIZE, vz}, 1);
+                    }
                 }
             }
         }
     }
-    chunk->addVoxel({0, 1, 0}, 1);
-
-    ChunkMesher chunkMesher;
-    ChunkMeshRegistry chunkMeshRegistry;
-    chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
 }
 
 template<typename Func>
@@ -108,27 +91,18 @@ double timeOf(Func func, std::string msg) {
 }
 
 void run() {
-    VulkanApp app;
-    ChunkManager chunkManager;
-    ChunkMesher chunkMesher;
-    ChunkMeshRegistry chunkMeshRegistry;
-    ChunkRenderSync chunkRenderSync;
+    VoxelEngine engine;
 
-    app.init({0, 10.0f, 0}, 70);
+    engine.init({0, 10.0f, 0}, 70);
 
     // ------------------------ Temps Allocation ------------------------ //
 
     double total = 0;
 
-    total += timeOf([&]() { procedural(chunkManager); }, "Temps de génération du monde : ");
-    total += timeOf([&]() { update(chunkManager, chunkMesher, chunkMeshRegistry); }, "Temps de crétion des mesh : ");
-    total += timeOf([&]() { syncRender(chunkManager, chunkMeshRegistry, chunkRenderSync, app); }, "Temps de d'allocation GPU : ");
-    // total += timeOf(upload, "Temps de de réallocation GPU : ");
+    total += timeOf([&]() { procedural(engine); }, "Temps de génération du monde : ");
+    total += timeOf([&]() { engine.update(); }, "Temps de mise à jour moteur : ");
 
     std::cout << "Temps total : " << total << std::endl;
-
-    // test();
-    // test2();
 
     // ------------------------------------------------------------------ //
 
@@ -137,7 +111,7 @@ void run() {
     double elapsedTime;
     int frameCount = 0;
 
-    while (app.isRun()) {
+    while (engine.isRun()) {
         currentTime = std::chrono::high_resolution_clock::now();    
         elapsedTime = std::chrono::duration<double, std::milli>(currentTime - lastTime).count();
         frameCount++;
@@ -148,21 +122,11 @@ void run() {
             lastTime = currentTime;
         }
 
-        chunkMesher.updateAll(chunkManager, chunkMeshRegistry);
-        chunkRenderSync.syncAll(
-            chunkManager,
-            chunkMeshRegistry,
-            app.getChunkRenderStateCache(),
-            app.getCamera()->getPosition(),
-            app.getBufferManager()
-        );
-
-        app.getRenderer().resetCommandBuffers();
-    
-        app.render();
+        engine.update();
+        engine.render();
     }
 
-    app.cleanup();
+    engine.shutdown();
 }
 
 int main(int argc, char const *argv[]) {

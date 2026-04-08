@@ -10,7 +10,7 @@ class ChunkNeighborhoodView {
 public:
     explicit ChunkNeighborhoodView(ChunkManager& p_chunk_manager);
 
-    Chunk* getChunk(glm::ivec3 p_pos) const;
+    const Chunk* getChunk(glm::ivec3 p_pos) const;
 
 private:
     ChunkManager& _chunk_manager;
