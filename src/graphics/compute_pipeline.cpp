@@ -48,8 +48,15 @@ void ComputePipeline::createDescriptorSetLayout(Device& p_device) {
     }
 }
 
-void ComputePipeline::createComputePipeline(GraphicPipeline& p_graphic_pipeline, Device& p_device) {
-    VkShaderModule computeShaderModule = p_graphic_pipeline.createShaderModule(p_graphic_pipeline.readFile("res/shaders/comp.spv"), p_device);
+void ComputePipeline::createComputePipeline(
+    const std::filesystem::path& compute_shader_path,
+    GraphicPipeline& p_graphic_pipeline,
+    Device& p_device
+) {
+    VkShaderModule computeShaderModule = p_graphic_pipeline.createShaderModule(
+        p_graphic_pipeline.readFile(compute_shader_path),
+        p_device
+    );
 
     VkPushConstantRange pushConstantRange{};
     pushConstantRange.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;

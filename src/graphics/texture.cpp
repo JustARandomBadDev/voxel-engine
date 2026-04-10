@@ -1,7 +1,7 @@
 #include "graphics/texture.h"
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include <stb_image.h>
 
 #include <stdexcept>
 
@@ -10,13 +10,17 @@
 #include "graphics/renderer.h"
 #include "graphics/swapchain.h"
 
-void Texture::createTextureImage(Renderer& p_renderer, Device& p_device) {
+void Texture::createTextureImage(
+    const std::filesystem::path& texture_path,
+    Renderer& p_renderer,
+    Device& p_device
+) {
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("res/textures/terrain.png", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(texture_path.string().c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
-        throw std::runtime_error("failed to load texture image!");
+        throw std::runtime_error("failed to load texture image: " + texture_path.string());
     }
 
     Buffer stagingBuffer;

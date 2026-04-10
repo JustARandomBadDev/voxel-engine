@@ -1,7 +1,7 @@
 #include "engine/voxel_engine.h"
 
-void VoxelEngine::init(glm::vec3 camera_pos, float fov) {
-    _app.init(camera_pos, fov);
+void VoxelEngine::init(const VoxelEngineInitConfig& config) {
+    _app.init(config);
 }
 
 void VoxelEngine::update() {

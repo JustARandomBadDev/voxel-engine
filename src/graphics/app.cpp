@@ -7,6 +7,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <filesystem>
 #include <stdexcept>
 #include <algorithm>
 #include <vector>
@@ -24,6 +25,35 @@
 
 #include "world/chunk_manager.h"
 
+namespace {
+
+void validateRequiredResourcePath(const std::filesystem::path& path, const char* resource_name) {
+    if (path.empty()) {
+        throw std::runtime_error(std::string("missing required resource path: ") + resource_name);
+    }
+
+    if (!std::filesystem::exists(path)) {
+        throw std::runtime_error(
+            std::string("required resource does not exist: ") + resource_name + " -> " + path.string()
+        );
+    }
+
+    if (!std::filesystem::is_regular_file(path)) {
+        throw std::runtime_error(
+            std::string("required resource is not a file: ") + resource_name + " -> " + path.string()
+        );
+    }
+}
+
+void validateGraphicsResources(const GraphicsResourceConfig& resources) {
+    validateRequiredResourcePath(resources.terrainTexture, "graphicsResources.terrainTexture");
+    validateRequiredResourcePath(resources.voxelVertexShader, "graphicsResources.voxelVertexShader");
+    validateRequiredResourcePath(resources.voxelFragmentShader, "graphicsResources.voxelFragmentShader");
+    validateRequiredResourcePath(resources.meshingComputeShader, "graphicsResources.meshingComputeShader");
+}
+
+} // namespace
+
 void VulkanApp::initWindow() {
     glfwInit();
 
@@ -37,7 +67,7 @@ void VulkanApp::initWindow() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void VulkanApp::initVulkan() {
+void VulkanApp::initVulkan(const GraphicsResourceConfig& resources) {
     instance.createInstance();
     instance.setupDebugMessenger();
     instance.createSurface(window);
@@ -52,16 +82,20 @@ void VulkanApp::initVulkan() {
 
     graphicPipeline.createRenderPass(swapchain, device);
     graphicPipeline.createDescriptorSetLayout(device);
-    graphicPipeline.createGraphicsPipeline(device);
+    graphicPipeline.createGraphicsPipeline(
+        resources.voxelVertexShader,
+        resources.voxelFragmentShader,
+        device
+    );
 
     computePipeline.createDescriptorSetLayout(device);
-    computePipeline.createComputePipeline(graphicPipeline, device);
+    computePipeline.createComputePipeline(resources.meshingComputeShader, graphicPipeline, device);
 
     renderer.createCommandPool(device, instance);
     device.createDepthResources(swapchain);
     renderer.createFramebuffers(graphicPipeline, swapchain, device);
 
-    texture.createTextureImage(renderer, device);
+    texture.createTextureImage(resources.terrainTexture, renderer, device);
     texture.createTextureImageView(swapchain, device);
     texture.createTextureSampler(device);
 
@@ -91,12 +125,13 @@ void VulkanApp::render() {
     drawFrame();
 }
 
-void VulkanApp::init(glm::vec3 posCamera, float fov) {
+void VulkanApp::init(const VoxelEngineInitConfig& config) {
     generated = 0;
-    camera = Camera(posCamera, fov, 0);
+    validateGraphicsResources(config.graphicsResources);
+    camera = Camera(config.cameraPos, config.fov, 0);
 
     initWindow();
-    initVulkan();
+    initVulkan(config.graphicsResources);
 
     camera.updateProjection(swapchain.getAspectRatio());
 }

@@ -1,18 +1,17 @@
 #ifndef VOXEL_ENGINE_H
 #define VOXEL_ENGINE_H
 
-#include <glm/glm.hpp>
-
 #include "engine/chunk_mesh_registry.h"
 #include "engine/chunk_mesher.h"
 #include "engine/chunk_render_sync.h"
+#include "engine/voxel_engine_config.h"
 #include "graphics/app.h"
 #include "world/chunk_manager.h"
 #include "world/voxel.h"
 
 class VoxelEngine {
 public:
-    void init(glm::vec3 camera_pos, float fov);
+    void init(const VoxelEngineInitConfig& config);
     void update();
     void render();
     void shutdown();

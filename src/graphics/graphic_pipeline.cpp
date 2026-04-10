@@ -90,9 +90,13 @@ void GraphicPipeline::createDescriptorSetLayout(Device& p_device) {
     }
 }
 
-void GraphicPipeline::createGraphicsPipeline(Device& p_device) {
-    auto vertShaderCode = readFile("res/shaders/vert.spv");
-    auto fragShaderCode = readFile("res/shaders/frag.spv");
+void GraphicPipeline::createGraphicsPipeline(
+    const std::filesystem::path& vertex_shader_path,
+    const std::filesystem::path& fragment_shader_path,
+    Device& p_device
+) {
+    auto vertShaderCode = readFile(vertex_shader_path);
+    auto fragShaderCode = readFile(fragment_shader_path);
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode, p_device);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode, p_device);
@@ -262,11 +266,11 @@ VkShaderModule GraphicPipeline::createShaderModule(const std::vector<char>& code
     return shaderModule;
 }
 
-std::vector<char> GraphicPipeline::readFile(const std::string& filename) {
+std::vector<char> GraphicPipeline::readFile(const std::filesystem::path& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error(filename.c_str());
+        throw std::runtime_error("failed to open file: " + filename.string());
     }
 
     size_t fileSize = (size_t) file.tellg();

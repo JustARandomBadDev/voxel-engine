@@ -7,6 +7,7 @@
 
 #include "core/camera.h"
 #include "core/config.h"
+#include "engine/voxel_engine_config.h"
 #include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
 #include "graphics/chunk_render_state.h"
@@ -26,7 +27,7 @@
 
 class VulkanApp {
 public:
-    void init(glm::vec3 posCamera, float fov);
+    void init(const VoxelEngineInitConfig& config);
     void render();
     void drawFrame();
     void recordCommandBuffer(uint32_t imageIndex);
@@ -69,7 +70,7 @@ private:
     float lastFrame = 0;
 
     void initWindow();
-    void initVulkan();
+    void initVulkan(const GraphicsResourceConfig& resources);
 
     void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);
 

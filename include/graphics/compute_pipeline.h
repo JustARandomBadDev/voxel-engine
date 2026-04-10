@@ -1,6 +1,7 @@
 #ifndef VULKAN_COMPUTE_H 
 #define VULKAN_COMPUTE_H
 
+#include <filesystem>
 #include <vulkan/vulkan.h>
 
 class Descriptor;
@@ -10,7 +11,11 @@ class Renderer;
 
 class ComputePipeline {
 public:
-    void createComputePipeline(GraphicPipeline& p_graphic_pipeline, Device& p_device);
+    void createComputePipeline(
+        const std::filesystem::path& compute_shader_path,
+        GraphicPipeline& p_graphic_pipeline,
+        Device& p_device
+    );
     void dispatchCompute(Descriptor& p_descriptor, Renderer& p_renderer, Device& p_device);
     void createDescriptorSetLayout(Device& p_device);
     void cleanup(Device& p_device);
