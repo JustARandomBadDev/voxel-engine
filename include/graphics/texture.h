@@ -1,6 +1,7 @@
 #ifndef TEXTURE_MANAGER_H
 #define TEXTURE_MANAGER_H
 
+#include <filesystem>
 #include <vulkan/vulkan.h>
 
 class Device;
@@ -9,7 +10,11 @@ class Swapchain;
 
 class Texture {
 public:
-    void createTextureImage(Renderer& p_renderer, Device& p_device);
+    void createTextureImage(
+        const std::filesystem::path& texture_path,
+        Renderer& p_renderer,
+        Device& p_device
+    );
     void createTextureImageView(Swapchain& p_swapchain, Device& p_device);
     void createTextureSampler(Device& p_device);
     void cleanup(Device& p_device);

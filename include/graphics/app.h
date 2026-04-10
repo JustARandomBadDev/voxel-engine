@@ -7,8 +7,10 @@
 
 #include "core/camera.h"
 #include "core/config.h"
+#include "engine/voxel_engine_config.h"
 #include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
+#include "graphics/chunk_render_state.h"
 #include "graphics/compute_pipeline.h"
 #include "graphics/descriptor.h"
 #include "graphics/device.h"
@@ -25,13 +27,13 @@
 
 class VulkanApp {
 public:
-    void init(glm::vec3 posCamera, float fov);
+    void init(const VoxelEngineInitConfig& config);
     void render();
     void drawFrame();
     void recordCommandBuffer(uint32_t imageIndex);
     void cleanup();
 
-    bool isRun() { return !glfwWindowShouldClose(window); };
+    bool isRun() const { return !glfwWindowShouldClose(window); };
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
@@ -39,6 +41,7 @@ public:
     const float getDeltaTime() const { return deltaTime; }
     Camera* getCamera() { return &camera; }
     BufferManager& getBufferManager() { return bufferManager; }
+    ChunkRenderStateCache& getChunkRenderStateCache() { return chunkRenderStateCache; }
     Renderer& getRenderer() { return renderer; }
 
     VulkanApp()
@@ -50,6 +53,7 @@ private:
     Instance instance;
     Device device;
     BufferManager bufferManager;
+    ChunkRenderStateCache chunkRenderStateCache;
     Renderer renderer;
     Swapchain swapchain;
     Texture texture;
@@ -66,7 +70,7 @@ private:
     float lastFrame = 0;
 
     void initWindow();
-    void initVulkan();
+    void initVulkan(const GraphicsResourceConfig& resources);
 
     void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);
 

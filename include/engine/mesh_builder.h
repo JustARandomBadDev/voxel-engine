@@ -5,6 +5,7 @@
 #include "engine/sortable_mesh.h"
 #include "world/voxel.h"
 
+class Chunk;
 class ChunkManager;
 
 class MeshBuilder {
@@ -12,7 +13,7 @@ public:
     void buildMeshes(
         Voxel (& voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE],
         glm::ivec3 p_chunk_pos,
-        ChunkManager& p_chunk_manager
+        ChunkManager& p_chunk_neighborhood_view
     );
 
     Mesh& getOpaqueMesh() { return _opaque_mesh; }
@@ -21,6 +22,9 @@ public:
 private:
     Mesh _opaque_mesh;
     SortableMesh _transparent_mesh;
+
+    bool shouldRender(int nx, int ny, int nz, const Chunk* neighborChunk, const VoxelData& data,
+    const Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE]);
 };
 
 #endif
