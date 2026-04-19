@@ -4,13 +4,20 @@
 #include <string.h>
 #include <vulkan/vulkan.h>
 
-#include "core/config.h"
 #include "graphics/device.h"
 #include "graphics/buffer_manager.h"
 #include "engine/mesh.h"
 
-void AllocatorManager::init(Device& p_device) {
-    _staging.createBuffer(1000000,
+void AllocatorManager::init(Device& p_device, const GpuAllocatorConfig& p_config) {
+    if (p_config.meshDataBlockCapacityPerAllocator == 0 ||
+        p_config.indirectCommandCapacityPerAllocator == 0 ||
+        p_config.stagingBufferBytes == 0 ||
+        p_config.allocationMarginBlocks == 0) {
+        throw std::runtime_error("AllocatorManager::init() -> invalid GPU allocator config");
+    }
+
+    _staging.createBuffer(
+        p_config.stagingBufferBytes,
         VK_BUFFER_USAGE_TRANSFER_DST_BIT |
         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
@@ -18,11 +25,9 @@ void AllocatorManager::init(Device& p_device) {
         p_device
     );
 
-    uint32_t nbBlock = NB_FACE_CHUNK * std::pow(RENDER_DISTANCE, 2);
-
     _vertexAllocator = Allocator(
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        nbBlock,
+        p_config.meshDataBlockCapacityPerAllocator,
         static_cast<uint32_t>(NB_VERTEX_PER_BLOCK * sizeof(Vertex)),
         _staging,
         p_device
@@ -30,17 +35,15 @@ void AllocatorManager::init(Device& p_device) {
 
     _indexAllocator = Allocator(
         VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        nbBlock,
+        p_config.meshDataBlockCapacityPerAllocator,
         static_cast<uint32_t>(NB_INDEX_PER_BLOCK * sizeof(uint32_t)),
         _staging,
         p_device
     );
 
-    nbBlock = std::pow(RENDER_DISTANCE, 3);
-
     _indirectAllocator = Allocator(
         VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        nbBlock,
+        p_config.indirectCommandCapacityPerAllocator,
         static_cast<uint32_t>(sizeof(DrawIndirectCommand)),
         _staging,
         p_device
@@ -50,13 +53,14 @@ void AllocatorManager::init(Device& p_device) {
     _nbDataBlock = 0;
     _nbIndirectBlock = 0;
     _stagingOffset = 0;
+    _allocationMarginBlocks = p_config.allocationMarginBlocks;
 }
 
 int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer_manager) {
     auto& vertex = p_mesh.getVertex();
     auto& index = p_mesh.getIndex();
     uint32_t nbBlock = static_cast<uint32_t>(vertex.size()) / NB_VERTEX_PER_BLOCK;
-    uint32_t maxNbBlock = nbBlock * MARGIN_BLOCKS;
+    uint32_t maxNbBlock = nbBlock * _allocationMarginBlocks;
     
     DrawIndirectCommand indirectCommand;
     indirectCommand.indexCount = index.size();
@@ -122,7 +126,7 @@ int AllocatorManager::availableAlloc(uint32_t p_nbBlock) {
 
     uint32_t index = 0;
     for (AllocInfo info : _freeList) {
-        if (p_nbBlock * MARGIN_BLOCKS < info.maxDataBlock) return index;
+        if (p_nbBlock * _allocationMarginBlocks < info.maxDataBlock) return index;
 
         index++;
     }

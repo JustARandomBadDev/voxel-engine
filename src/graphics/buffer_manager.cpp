@@ -14,9 +14,9 @@ void BufferManager::configure(Device& p_device, Renderer& p_renderer) {
     _renderer = &p_renderer;
 }
 
-void BufferManager::createBuffers() {
-    _opaque_allocator.init(*_device);
-    _transparent_allocator.init(*_device);
+void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_config) {
+    _opaque_allocator.init(*_device, p_gpu_allocator_config);
+    _transparent_allocator.init(*_device, p_gpu_allocator_config);
 
     VkDeviceSize bufferSize = 1;
 

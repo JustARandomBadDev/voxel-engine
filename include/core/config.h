@@ -11,7 +11,5 @@
 
 inline constexpr int RENDER_DISTANCE = 16;
 inline constexpr int CHUNK_SIZE      = 16;
-inline constexpr int NB_FACE_CHUNK   = (CHUNK_SIZE / 2) * (CHUNK_SIZE / 2) * (CHUNK_SIZE / 2) * 6;
-inline constexpr int MARGIN_BLOCKS   = 1;
 
 #endif // VULKAN_CONFIG_H

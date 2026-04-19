@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "engine/mesh.h"
+#include "engine/voxel_engine_config.h"
 #include "graphics/buffer.h"
 #include "graphics/uniform_buffer.h"
 #include "graphics/block_update.h"
@@ -25,7 +26,7 @@ class BufferManager {
 public:
     void configure(Device& p_device, Renderer& p_renderer);
 
-    void createBuffers();
+    void createBuffers(const GpuAllocatorConfig& p_gpu_allocator_config);
     void cleanupBuffers();
 
     void createUniformBuffers(uint32_t p_frames_in_flight);

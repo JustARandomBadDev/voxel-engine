@@ -70,7 +70,7 @@ private:
     float lastFrame = 0;
 
     void initWindow();
-    void initVulkan(const GraphicsResourceConfig& resources);
+    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config);
 
     void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);
 

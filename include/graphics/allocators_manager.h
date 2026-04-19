@@ -11,6 +11,7 @@
 #include "graphics/vertex.h"
 #include "graphics/allocator.h"
 #include "engine/mesh.h"
+#include "engine/voxel_engine_config.h"
 
 class BufferManager;
 class Device;
@@ -34,7 +35,7 @@ struct AllocInfo {
 
 class AllocatorManager {
 public:
-    void init(Device& p_device);
+    void init(Device& p_device, const GpuAllocatorConfig& p_config);
     int  allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager);
     void freeMesh(int pid);
     void resetStagingOffset() { _stagingOffset = 0; };
@@ -61,6 +62,7 @@ private:
     uint32_t _id;
 
     uint32_t _stagingOffset;
+    uint32_t _allocationMarginBlocks = 1;
 
     std::unordered_map<uint32_t, AllocInfo> _used;
     std::vector<AllocInfo> _freeList;

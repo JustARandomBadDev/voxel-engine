@@ -67,7 +67,7 @@ void VulkanApp::initWindow() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void VulkanApp::initVulkan(const GraphicsResourceConfig& resources) {
+void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config) {
     instance.createInstance();
     instance.setupDebugMessenger();
     instance.createSurface(window);
@@ -99,7 +99,7 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources) {
     texture.createTextureImageView(swapchain, device);
     texture.createTextureSampler(device);
 
-    bufferManager.createBuffers();
+    bufferManager.createBuffers(gpu_allocator_config);
     bufferManager.createUniformBuffers(swapchain.getFramesInFlight());
 
     descriptor.createDescriptorPool(device, swapchain.getFramesInFlight());
@@ -131,7 +131,7 @@ void VulkanApp::init(const VoxelEngineInitConfig& config) {
     camera = Camera(config.cameraPos, config.fov, 0);
 
     initWindow();
-    initVulkan(config.graphicsResources);
+    initVulkan(config.graphicsResources, config.gpuAllocator);
 
     camera.updateProjection(swapchain.getAspectRatio());
 }
@@ -213,7 +213,7 @@ void VulkanApp::drawFrame() {
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &renderer.getCurrentCommandBuffers();
 
-    VkSemaphore signalSemaphores[] = {renderer.getCurrentRenderFinishedSemaphores()};
+    VkSemaphore signalSemaphores[] = {renderer.getRenderFinishedSemaphore(imageIndex)};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 

@@ -38,7 +38,7 @@ public:
     const VkFence& getCurrentComputeInFlightFences() { return computeInFlightFences[currentFrame]; }
 
     const VkSemaphore& getCurrentImageAvailableSemaphores() { return imageAvailableSemaphores[currentFrame]; }
-    const VkSemaphore& getCurrentRenderFinishedSemaphores() { return renderFinishedSemaphores[currentFrame]; }
+    const VkSemaphore& getRenderFinishedSemaphore(uint32_t imageIndex) { return renderFinishedSemaphores[imageIndex]; }
     const VkSemaphore& getCurrentComputeFinishedSemaphores() { return computeFinishedSemaphores[currentFrame]; }
 
     const VkCommandBuffer& getCopyCommandBuffer() { return copyCommandBuffer; };

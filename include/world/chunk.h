@@ -20,6 +20,7 @@ public:
     Voxel      getVoxel(int x, int y, int z) { return _voxels[x][y][z]; }
     Voxel      getVoxel(int x, int y, int z) const { return _voxels[x][y][z]; }
     bool       isDirty() const               { return _is_modify; }
+    void       markDirty()                   { _is_modify = true; }
     void       clearDirty()                  { _is_modify = false; }
     Voxel (&getVoxels()) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] { return _voxels; }
     

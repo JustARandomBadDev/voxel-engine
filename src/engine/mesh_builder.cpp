@@ -42,6 +42,9 @@ void MeshBuilder::buildMeshes(
     glm::ivec3 p_chunk_pos,
     ChunkManager& p_chunk_manager
 ) {
+    _transparent_mesh.clear();
+    _opaque_mesh.clear();
+
     const Chunk* cxp = p_chunk_manager.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
     const Chunk* cxm = p_chunk_manager.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
     const Chunk* cyp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});

@@ -27,6 +27,16 @@ private:
     ChunkMesher _chunk_mesher;
     ChunkMeshRegistry _chunk_mesh_registry;
     ChunkRenderSync _chunk_render_sync;
+
+    void markChunkDirtyIfLoaded(glm::ivec3 chunk_pos);
+    void markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos);
+    void markAdjacentChunksDirty(glm::ivec3 chunk_pos);
+
+    bool checkLocalPos(glm::ivec3 local_voxel_pos) const {
+        return local_voxel_pos.x >= 0 && local_voxel_pos.x < CHUNK_SIZE &&
+               local_voxel_pos.y >= 0 && local_voxel_pos.y < CHUNK_SIZE &&
+               local_voxel_pos.z >= 0 && local_voxel_pos.z < CHUNK_SIZE;
+    }
 };
 
 #endif
