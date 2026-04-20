@@ -17,8 +17,8 @@ public:
     void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_frames_in_flight);
     void cleanup(Device& p_device);
 
-    const std::vector<VkDescriptorSet>& getDescriptorSets() { return descriptorSets; }
-    const VkDescriptorSet& getComputeDescriptorSets(uint32_t p_current_frame) { return computeDescriptorSets[p_current_frame]; }
+    const std::vector<VkDescriptorSet>& getDescriptorSets() const { return descriptorSets; }
+    const VkDescriptorSet& getComputeDescriptorSets(uint32_t p_current_frame) const { return computeDescriptorSets[p_current_frame]; }
 
 private:
     VkDescriptorPool descriptorPool;

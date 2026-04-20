@@ -6,13 +6,13 @@
 #include "graphics/buffer_manager.h"
 
 Allocator::Allocator(int p_usage, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging, Device& p_device)
-: _blockSize(p_blockSize), _staging(std::make_optional(p_staging)), _size(p_nbBlock*p_blockSize)
+: _blockSize(p_blockSize), _size(p_nbBlock*p_blockSize), _staging(std::make_optional(p_staging))
 {
     _buffer.createBuffer(_size, p_usage, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, p_device);
     _device = &p_device;
 }
 
-void Allocator::alloc(void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffset, uint32_t p_dstOffset) {
+void Allocator::alloc(const void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffset, uint32_t p_dstOffset) {
     uint32_t size = p_nbBlock * _blockSize;
 
     if (p_dstOffset + size > _size || p_srcOffset + size > _staging.value().get().getSize())

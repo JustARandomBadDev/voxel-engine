@@ -32,7 +32,3 @@ void SortableMesh::sort(glm::vec3 p_camera_pos) {
         Mesh::add(face);
     }
 }
-
-bool SortableMesh::isEmpty() {
-    return Mesh::isEmpty() && ! _faces.size();
-}

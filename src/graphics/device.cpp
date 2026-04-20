@@ -84,7 +84,7 @@ void Device::cleanup() {
     vkDestroyDevice(device, nullptr);
 }
 
-bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) {
+bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) const {
     QueueFamilyIndices indices = findQueueFamilies(pdevice, p_instance);
 
     bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
@@ -101,7 +101,7 @@ bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Sw
     return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy && supportedFeatures.multiDrawIndirect;
 }
 
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) {
+QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const {
     QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
@@ -133,7 +133,7 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance&
     return indices;
 }
 
-bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) {
+bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(pdevice, nullptr, &extensionCount, nullptr);
 
@@ -149,7 +149,7 @@ bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) {
     return requiredExtensions.empty();
 }
 
-VkFormat Device::findDepthFormat() {
+VkFormat Device::findDepthFormat() const {
     return findSupportedFormat(
     {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL,
@@ -157,7 +157,7 @@ VkFormat Device::findDepthFormat() {
     );
 }
 
-VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const {
     for (VkFormat format : candidates) {
         VkFormatProperties props;
         vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);

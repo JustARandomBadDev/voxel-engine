@@ -18,8 +18,12 @@ public:
         ChunkManager& p_chunk_neighborhood_view
     );
 
+
     Mesh& getOpaqueMesh() { return _opaque_mesh; }
+    const Mesh& getOpaqueMesh() const { return _opaque_mesh; }
+    
     SortableMesh& getTransparentMesh() { return _transparent_mesh; }
+    const SortableMesh& getTransparentMesh() const { return _transparent_mesh; }
 
 private:
     Mesh _opaque_mesh;

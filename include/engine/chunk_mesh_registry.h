@@ -11,7 +11,10 @@
 class ChunkMeshRegistry {
 public:
     MeshBuilder& getOrCreate(glm::ivec3 p_chunk_pos);
+
     MeshBuilder* get(glm::ivec3 p_chunk_pos);
+    const MeshBuilder* get(glm::ivec3 p_chunk_pos) const;
+
     void remove(glm::ivec3 p_chunk_pos);
     void clear();
 

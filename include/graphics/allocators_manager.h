@@ -40,13 +40,16 @@ public:
 
     void cleanup();
 
-    Buffer& getVertexBuffer()   { return _vertexAllocator.getBuffer(); }
-    Buffer& getIndexBuffer()    { return _indexAllocator.getBuffer(); }
+    Buffer& getVertexBuffer() { return _vertexAllocator.getBuffer(); }
+    const Buffer& getVertexBuffer() const { return _vertexAllocator.getBuffer(); }
+    Buffer& getIndexBuffer() { return _indexAllocator.getBuffer(); }
+    const Buffer& getIndexBuffer() const { return _indexAllocator.getBuffer(); }
     Buffer& getIndirectBuffer() { return _indirectAllocator.getBuffer(); }
+    const Buffer& getIndirectBuffer() const { return _indirectAllocator.getBuffer(); }
     
-    uint32_t     getVertexCount()    { return _nbDataBlock * NB_VERTEX_PER_BLOCK; }
-    uint32_t     getIndexCount()     { return _nbDataBlock * NB_INDEX_PER_BLOCK; }
-    uint32_t     getIndirectCount()  { return _nbIndirectBlock; }
+    uint32_t     getVertexCount()    const { return _nbDataBlock * NB_VERTEX_PER_BLOCK; }
+    uint32_t     getIndexCount()     const { return _nbDataBlock * NB_INDEX_PER_BLOCK; }
+    uint32_t     getIndirectCount()  const { return _nbIndirectBlock; }
 
 private:
     Allocator _vertexAllocator;

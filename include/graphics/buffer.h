@@ -15,8 +15,10 @@ public:
     void cleanup();
 
     VkBuffer& getBuffer() { return buffer; }
+    const VkBuffer& getBuffer() const { return buffer; }
     VkDeviceMemory& getBufferMemory() { return bufferMemory; }
-    VkDeviceSize getSize() { return size; }
+    const VkDeviceMemory& getBufferMemory() const { return bufferMemory; }
+    VkDeviceSize getSize() const { return size; }
 
 private:
     VkBuffer buffer;

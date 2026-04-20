@@ -89,7 +89,7 @@ int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer
     indirectCommand.vertexOffset = static_cast<uint32_t>(infos.dataBlock * NB_VERTEX_PER_BLOCK);
     indirectCommand.indexOffset = static_cast<uint32_t>(infos.dataBlock * NB_INDEX_PER_BLOCK);
 
-    auto tryAlloc = [&](Allocator& p_allocator, void* p_data, uint32_t p_blocks, uint32_t& p_stagingOffset, uint32_t p_dest_offset) {
+    auto tryAlloc = [&](Allocator& p_allocator, const void* p_data, uint32_t p_blocks, uint32_t& p_stagingOffset, uint32_t p_dest_offset) {
         uint32_t size = p_blocks * p_allocator.getBlockSize();
 
         if (p_stagingOffset + size > _staging.getSize()) {

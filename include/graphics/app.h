@@ -30,12 +30,17 @@ public:
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
-    GLFWwindow* getWindow() const { return window; }
-    const float getDeltaTime() const { return deltaTime; }
-    Camera* getCamera() { return &camera; }
-    BufferManager& getBufferManager() { return bufferManager; }
-    ChunkRenderStateCache& getChunkRenderStateCache() { return chunkRenderStateCache; }
-    Renderer& getRenderer() { return renderer; }
+    GLFWwindow*                  getWindow()                      { return window; }
+    const GLFWwindow*            getWindow()                const { return window; }
+    float                        getDeltaTime()             const { return deltaTime; }
+    Camera*                      getCamera()                      { return &camera; }
+    const Camera*                getCamera()                const { return &camera; }
+    BufferManager&               getBufferManager()               { return bufferManager; }
+    const BufferManager&         getBufferManager()         const { return bufferManager; }
+    ChunkRenderStateCache&       getChunkRenderStateCache()       { return chunkRenderStateCache; }
+    const ChunkRenderStateCache& getChunkRenderStateCache() const { return chunkRenderStateCache; }
+    Renderer&                    getRenderer()                    { return renderer; }
+    const Renderer&              getRenderer()              const { return renderer; }
 
     VulkanApp()
     : camera({0, 0, 0}, 0, 0) {};

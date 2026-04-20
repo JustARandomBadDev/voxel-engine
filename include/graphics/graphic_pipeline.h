@@ -25,13 +25,13 @@ public:
 
     VkRenderPass getRenderPass() const { return renderPass; }
 
-    const VkDescriptorSetLayout& getDescriptorSetLayout() { return descriptorSetLayout; }
+    const VkDescriptorSetLayout& getDescriptorSetLayout() const { return descriptorSetLayout; }
 
-    const VkPipeline& getOpaquePipeline() { return opaquePipeline; }
-    const VkPipelineLayout& getOpaquePipelineLayout() { return opaquePipelineLayout; }
+    const VkPipeline& getOpaquePipeline() const { return opaquePipeline; }
+    const VkPipelineLayout& getOpaquePipelineLayout() const { return opaquePipelineLayout; }
 
-    const VkPipeline& getTransparentPipeline() { return transparentPipeline; }
-    const VkPipelineLayout& getTransparentPipelineLayout() { return transparentPipelineLayout; }
+    const VkPipeline& getTransparentPipeline() const { return transparentPipeline; }
+    const VkPipelineLayout& getTransparentPipelineLayout() const { return transparentPipelineLayout; }
 
 private:
     VkRenderPass renderPass;

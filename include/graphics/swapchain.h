@@ -23,17 +23,18 @@ public:
     void createImageViews(Device& p_device);
     void cleanup(Device& p_device);
 
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance);
-    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device);
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) const;
+    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) const;
 
-    const VkSwapchainKHR&             getSwapChain() { return swapChain; }
-    const VkFormat&                   getSwapChainImageFormat() { return swapChainImageFormat; }
-    const VkExtent2D&                 getSwapChainExtent() { return swapChainExtent; }
-    const std::vector<VkImageView>&   getSwapChainImageViews() { return swapChainImageViews; }
-    const std::vector<VkFramebuffer>& getSwapChainFramebuffers() { return swapChainFramebuffers; }
-    const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }
-    const float                       getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
-    const uint32_t                    getFramesInFlight() const { return frames_in_flight; }
+    const VkSwapchainKHR&             getSwapChain() const { return swapChain; }
+    const VkFormat&                   getSwapChainImageFormat() const { return swapChainImageFormat; }
+    const VkExtent2D&                 getSwapChainExtent() const { return swapChainExtent; }
+    const std::vector<VkImageView>&   getSwapChainImageViews() const { return swapChainImageViews; }
+    const std::vector<VkFramebuffer>& getSwapChainFramebuffers() const { return swapChainFramebuffers; }
+    const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) const { return swapChainFramebuffers[imageIndex]; }
+
+    float    getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
+    uint32_t getFramesInFlight() const { return frames_in_flight; }
 
     void addSwapChainFramebuffers(VkFramebuffer pframeBuffer);
 

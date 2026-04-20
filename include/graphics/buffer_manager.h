@@ -42,17 +42,26 @@ public:
     static uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties, Device& p_device);
 
 
-    AllocatorManager& getAllocator()         { return _opaque_allocator; }
-    Buffer& getVertexBuffers()               { return _opaque_allocator.getVertexBuffer(); }
-    Buffer& getIndexBuffers()                { return _opaque_allocator.getIndexBuffer(); }
+    AllocatorManager& getAllocator() { return _opaque_allocator; }
+    const AllocatorManager& getAllocator() const { return _opaque_allocator; }
+    Buffer& getVertexBuffers() { return _opaque_allocator.getVertexBuffer(); }
+    const Buffer& getVertexBuffers() const { return _opaque_allocator.getVertexBuffer(); }
+    Buffer& getIndexBuffers() { return _opaque_allocator.getIndexBuffer(); }
+    const Buffer& getIndexBuffers() const { return _opaque_allocator.getIndexBuffer(); }
 
     AllocatorManager& getTransparentAllocator() { return _transparent_allocator; }
-    Buffer& getTransparentVertexBuffers()               { return _transparent_allocator.getVertexBuffer(); }
-    Buffer& getTransparentIndexBuffers()                { return _transparent_allocator.getIndexBuffer(); }
+    const AllocatorManager& getTransparentAllocator() const { return _transparent_allocator; }
+    Buffer& getTransparentVertexBuffers() { return _transparent_allocator.getVertexBuffer(); }
+    const Buffer& getTransparentVertexBuffers() const { return _transparent_allocator.getVertexBuffer(); }
+    Buffer& getTransparentIndexBuffers() { return _transparent_allocator.getIndexBuffer(); }
+    const Buffer& getTransparentIndexBuffers() const { return _transparent_allocator.getIndexBuffer(); }
 
-    Buffer& getVoxelBuffer()                 { return voxelBuffer; }
-    Buffer& getUpdateVoxelBuffer()           { return updateVoxelBuffer; }
-    UniformBuffer& getUniformBuffer(int i)   { return uniformBuffers[i]; }
+    Buffer& getVoxelBuffer() { return voxelBuffer; }
+    const Buffer& getVoxelBuffer() const { return voxelBuffer; }
+    Buffer& getUpdateVoxelBuffer() { return updateVoxelBuffer; }
+    const Buffer& getUpdateVoxelBuffer() const { return updateVoxelBuffer; }
+    UniformBuffer& getUniformBuffer(int i) { return uniformBuffers[i]; }
+    const UniformBuffer& getUniformBuffer(int i) const { return uniformBuffers[i]; }
 
 
 

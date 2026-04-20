@@ -24,7 +24,6 @@ void ChunkRenderSync::syncChunk(
         p_camera_pos,
         p_buffer_manager
     );
-
     p_chunk.clearDirty();
 }
 

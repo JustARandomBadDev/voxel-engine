@@ -2,7 +2,7 @@
 #define VULKAN_ALLOCATOR_H
 
 #include <cstdint>
-#include <memory>
+#include <functional>
 #include <optional>
 #include <glm/glm.hpp>
 
@@ -15,17 +15,16 @@ public:
     Allocator() {}
     Allocator(int p_flag, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging, Device& p_device);
     
-    void alloc(void* p_data, uint32_t p_size, uint32_t p_srcOffset, uint32_t p_dstOffset);
-    
-    // Fonctionne plus (copyBuffer ne se fait plus directement, faut faire un applyCopies)
+    void alloc(const void* p_data, uint32_t p_size, uint32_t p_srcOffset, uint32_t p_dstOffset);
     void extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset);
 
     void cleanup();
 
     Allocator& operator=(const Allocator& other);
 
-    Buffer& getBuffer() { return _buffer; };
-    uint32_t getBlockSize() { return _blockSize; }
+    Buffer& getBuffer() { return _buffer; }
+    const Buffer& getBuffer() const { return _buffer; }
+    uint32_t getBlockSize() const { return _blockSize; }
 
 private:
     Buffer _buffer;

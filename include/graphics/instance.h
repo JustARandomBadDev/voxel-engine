@@ -12,8 +12,8 @@ public:
     void createSurface(GLFWwindow* window);
     void cleanup();
 
-    VkInstance& getInstance() { return instance; }
-    VkSurfaceKHR& getSurface() { return surface; }
+    const VkInstance& getInstance() const { return instance; }
+    const VkSurfaceKHR& getSurface() const { return surface; }
 
 private:
     VkInstance instance;

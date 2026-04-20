@@ -19,8 +19,8 @@ public:
     void createTextureSampler(Device& p_device);
     void cleanup(Device& p_device);
 
-    VkImageView& getTextureImageView() { return textureImageView; }
-    VkSampler& getTextureSampler() { return textureSampler; }
+    const VkImageView& getTextureImageView() const { return textureImageView; }
+    const VkSampler& getTextureSampler() const { return textureSampler; }
 
 private:
     VkImage textureImage;

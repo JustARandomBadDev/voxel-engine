@@ -21,27 +21,27 @@ public:
     void resetCopyCommandBuffer();
     void cleanup(Device& p_device);
 
-    const VkCommandPool& getCommandPool() { return commandPool; }
+    const VkCommandPool& getCommandPool() const { return commandPool; }
 
-    const VkCommandBuffer& getCurrentCommandBuffers() { return commandBuffers[currentFrame]; }
-    const VkCommandBuffer& getCommandBuffer(int index) { return commandBuffers[index]; }
+    const VkCommandBuffer& getCurrentCommandBuffers() const { return commandBuffers[currentFrame]; }
+    const VkCommandBuffer& getCommandBuffer(int index) const { return commandBuffers[index]; }
 
-    const bool getCurrentCommandBuffersState() const { return commandBufferState[currentFrame]; }
-    const void setCurrentCommandBuffersState(bool p_state) { commandBufferState[currentFrame] = p_state; }
+    bool getCurrentCommandBuffersState() const { return commandBufferState[currentFrame]; }
+    void setCurrentCommandBuffersState(bool p_state) { commandBufferState[currentFrame] = p_state; }
 
-    const VkCommandBuffer& getCurrentComputeCommandBuffers() { return computeCommandBuffers[currentFrame]; }
-    const std::vector<VkFence>& getInFlightFences() { return inFlightFences; }
-    const std::vector<VkFence>& getComputeInFlightFences() { return computeInFlightFences; }
+    const VkCommandBuffer& getCurrentComputeCommandBuffers() const { return computeCommandBuffers[currentFrame]; }
+    const std::vector<VkFence>& getInFlightFences() const { return inFlightFences; }
+    const std::vector<VkFence>& getComputeInFlightFences() const { return computeInFlightFences; }
 
-    const uint32_t& getCurrentFrame() { return currentFrame; }
-    const VkFence& getCurrentInFlightFences() { return inFlightFences[currentFrame]; }
-    const VkFence& getCurrentComputeInFlightFences() { return computeInFlightFences[currentFrame]; }
+    uint32_t getCurrentFrame() const { return currentFrame; }
+    const VkFence& getCurrentInFlightFences() const { return inFlightFences[currentFrame]; }
+    const VkFence& getCurrentComputeInFlightFences() const { return computeInFlightFences[currentFrame]; }
 
-    const VkSemaphore& getCurrentImageAvailableSemaphores() { return imageAvailableSemaphores[currentFrame]; }
-    const VkSemaphore& getRenderFinishedSemaphore(uint32_t imageIndex) { return renderFinishedSemaphores[imageIndex]; }
-    const VkSemaphore& getCurrentComputeFinishedSemaphores() { return computeFinishedSemaphores[currentFrame]; }
+    const VkSemaphore& getCurrentImageAvailableSemaphores() const { return imageAvailableSemaphores[currentFrame]; }
+    const VkSemaphore& getRenderFinishedSemaphore(uint32_t imageIndex) const { return renderFinishedSemaphores[imageIndex]; }
+    const VkSemaphore& getCurrentComputeFinishedSemaphores() const { return computeFinishedSemaphores[currentFrame]; }
 
-    const VkCommandBuffer& getCopyCommandBuffer() { return copyCommandBuffer; };
+    const VkCommandBuffer& getCopyCommandBuffer() const { return copyCommandBuffer; };
 
     void incrementeCurrentFrame();
 

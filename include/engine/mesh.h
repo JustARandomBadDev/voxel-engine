@@ -21,9 +21,9 @@ public:
     
     void clear();
 
-    std::vector<Vertex>&   getVertex() { return _vertex; }
-    std::vector<uint32_t>& getIndex()  { return _index; }
-    virtual bool isEmpty()  { return (! _vertex.size()); }
+    const std::vector<Vertex>&   getVertex() const { return _vertex; }
+    const std::vector<uint32_t>& getIndex()  const { return _index; }
+    bool isEmpty() const { return (! _vertex.size()); }
 
 private:
     std::vector<Vertex> _vertex;

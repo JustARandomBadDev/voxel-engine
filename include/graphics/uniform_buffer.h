@@ -23,7 +23,9 @@ public:
     void cleanup();
 
     VkBuffer& getBuffer() { return buffer.getBuffer(); }
+    const VkBuffer& getBuffer() const { return buffer.getBuffer(); }
     VkDeviceMemory& getBufferMemory() { return buffer.getBufferMemory(); }
+    const VkDeviceMemory& getBufferMemory() const { return buffer.getBufferMemory(); }
 
 private:
     Buffer buffer;

@@ -109,7 +109,7 @@ void Swapchain::cleanup(Device& p_device) {
     vkDestroySwapchainKHR(p_device.getDevice(), swapChain, nullptr);
 }
 
-VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) {
+VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) const {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = image;
@@ -129,7 +129,7 @@ VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAs
         return imageView;
     }
 
-SwapChainSupportDetails Swapchain::querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) {
+SwapChainSupportDetails Swapchain::querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) const {
     SwapChainSupportDetails details;
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pdevice, p_instance.getSurface(), &details.capabilities);
