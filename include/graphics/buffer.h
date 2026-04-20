@@ -2,7 +2,6 @@
 #define VULKAN_BUFFER_H
 
 #include <vulkan/vulkan.h>
-#include <vector>
 
 #include <glm/glm.hpp>
 

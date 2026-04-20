@@ -3,10 +3,8 @@
 
 #include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
-#include <chrono>
 
 #include "core/camera.h"
-#include "core/config.h"
 #include "engine/voxel_engine_config.h"
 #include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
@@ -19,11 +17,6 @@
 #include "graphics/renderer.h"
 #include "graphics/swapchain.h"
 #include "graphics/texture.h"
-#include "graphics/vertex.h"
-#include "graphics/block_update.h"
-
-#include "world/chunk.h"
-#include "world/voxel.h"
 
 class VulkanApp {
 public:

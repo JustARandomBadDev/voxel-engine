@@ -1,9 +1,7 @@
 #include "graphics/buffer_manager.h"
 
-#include <iostream>
 #include <string.h>
 
-#include "graphics/vertex.h"
 #include "graphics/renderer.h"
 #include "graphics/device.h"
 

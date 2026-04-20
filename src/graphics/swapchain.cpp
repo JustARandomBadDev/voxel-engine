@@ -2,9 +2,7 @@
 
 #include <algorithm>
 #include <limits>
-#include <iostream>
 
-#include "core/config.h"
 #include "graphics/device.h"
 #include "graphics/graphic_pipeline.h"
 #include "graphics/instance.h"

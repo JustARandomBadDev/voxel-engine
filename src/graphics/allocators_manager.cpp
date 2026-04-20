@@ -1,7 +1,5 @@
 #include "graphics/allocators_manager.h"
 
-#include <iostream>
-#include <string.h>
 #include <vulkan/vulkan.h>
 
 #include "graphics/device.h"

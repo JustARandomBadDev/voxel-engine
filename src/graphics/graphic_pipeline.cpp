@@ -1,6 +1,7 @@
 #include "graphics/graphic_pipeline.h"
 
 #include <array>
+#include <fstream>
 
 #include "graphics/device.h"
 #include "graphics/swapchain.h"

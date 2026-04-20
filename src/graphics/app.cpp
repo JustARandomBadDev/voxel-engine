@@ -5,25 +5,15 @@
 
 #include <vulkan/vulkan.h>
 
-#include <iostream>
-#include <fstream>
 #include <filesystem>
 #include <stdexcept>
-#include <algorithm>
 #include <vector>
-#include <cstring>
-#include <cstdlib>
 #include <cstdint>
-#include <limits>
 #include <array>
-#include <optional>
-#include <set>
 
 #include <glm/glm.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
-
-#include "world/chunk_manager.h"
 
 namespace {
 

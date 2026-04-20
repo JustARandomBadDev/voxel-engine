@@ -2,11 +2,8 @@
 #define ENGINE_MESH_H
 
 #include <vector>
-#include <memory>
 #include <glm/glm.hpp>
 
-#include "core/config.h"
-#include "world/voxel.h"
 #include "graphics/vertex.h"
 #include "engine/face_position.h"
 #include "engine/texture_data.h"

@@ -4,11 +4,9 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-#include "engine/mesh.h"
 #include "engine/voxel_engine_config.h"
 #include "graphics/buffer.h"
 #include "graphics/uniform_buffer.h"
-#include "graphics/block_update.h"
 #include "graphics/allocators_manager.h"
 
 struct CopyInfo {

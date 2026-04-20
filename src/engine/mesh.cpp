@@ -1,12 +1,5 @@
 #include "engine/mesh.h"
 
-#include <iostream>
-
-#include "graphics/buffer_manager.h"
-#include "engine/voxel_data.h"
-#include "world/chunk.h"
-#include "world/chunk_manager.h"
-
 void Mesh::add(FaceData p_face) {
     addIndex();
 

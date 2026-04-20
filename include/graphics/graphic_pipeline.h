@@ -3,10 +3,7 @@
 
 #include <filesystem>
 #include <vulkan/vulkan.h>
-#include <fstream>
 #include <vector>
-
-#include "graphics/light.h"
 
 class Device;
 class Swapchain;

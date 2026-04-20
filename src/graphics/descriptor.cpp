@@ -1,6 +1,5 @@
 #include "graphics/descriptor.h"
 
-#include <iostream>
 #include <array>
 #include <string>
 

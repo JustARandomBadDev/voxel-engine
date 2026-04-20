@@ -5,6 +5,8 @@
 #include "engine/sortable_mesh.h"
 #include "world/voxel.h"
 
+#include "core/config.h"
+
 class Chunk;
 class ChunkManager;
 

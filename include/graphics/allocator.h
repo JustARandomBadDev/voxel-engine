@@ -2,15 +2,11 @@
 #define VULKAN_ALLOCATOR_H
 
 #include <cstdint>
-#include <vector>
 #include <memory>
 #include <optional>
 #include <glm/glm.hpp>
-#include <unordered_map>
 
 #include "graphics/buffer.h"
-#include "graphics/vertex.h"
-#include "engine/mesh.h"
 
 class Device;
 

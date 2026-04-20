@@ -1,6 +1,5 @@
 #include "graphics/device.h"
 
-#include <iostream>
 #include <set>
 
 #include "graphics/instance.h"

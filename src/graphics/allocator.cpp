@@ -1,6 +1,5 @@
 #include "graphics/allocator.h"
 
-#include <iostream>
 #include <string.h>
 
 #include "graphics/device.h"

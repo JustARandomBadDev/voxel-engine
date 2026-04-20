@@ -1,6 +1,5 @@
 #include "engine/sortable_mesh.h"
 
-#include <iostream>
 #include <algorithm>
 
 void SortableMesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, FaceTextureData p_uv, float p_shininess) {

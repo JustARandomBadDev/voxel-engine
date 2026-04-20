@@ -3,8 +3,6 @@
 
 #include <vector>
 
-#include "engine/texture_data.h"
-
 struct VoxelData {
     int textures;
     float shininess;

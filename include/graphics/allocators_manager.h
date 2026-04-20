@@ -3,12 +3,10 @@
 
 #include <cstdint>
 #include <vector>
-#include <memory>
 #include <glm/glm.hpp>
 #include <unordered_map>
 
 #include "graphics/buffer.h"
-#include "graphics/vertex.h"
 #include "graphics/allocator.h"
 #include "engine/mesh.h"
 #include "engine/voxel_engine_config.h"

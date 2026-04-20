@@ -1,7 +1,6 @@
 #include "engine/mesh_builder.h"
 
 #include "engine/voxel_data.h"
-#include "engine/voxel_direction.h"
 #include "world/chunk.h"
 #include "world/chunk_manager.h"
 

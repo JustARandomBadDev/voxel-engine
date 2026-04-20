@@ -1,8 +1,6 @@
 #include "graphics/compute_pipeline.h"
 
-#include <iostream>
 #include <array>
-#include <string>
 
 #include "graphics/device.h"
 #include "graphics/descriptor.h"
