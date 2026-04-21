@@ -61,10 +61,32 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     }
 }
 
-void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight) {
+void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, uint32_t p_image_count) {
+    if (!imageAvailableSemaphores.empty()) {
+        for (size_t i = 0; i < imageAvailableSemaphores.size(); i++) {
+            vkDestroySemaphore(p_device.getDevice(), imageAvailableSemaphores[i], nullptr);
+        }
+        imageAvailableSemaphores.clear();
+    }
+
+    if (!renderFinishedSemaphores.empty()) {
+        for (size_t i = 0; i < renderFinishedSemaphores.size(); i++) {
+            vkDestroySemaphore(p_device.getDevice(), renderFinishedSemaphores[i], nullptr);
+        }
+        renderFinishedSemaphores.clear();
+    }
+
+    if (!inFlightFences.empty()) {
+        for (size_t i = 0; i < inFlightFences.size(); i++) {
+            vkDestroyFence(p_device.getDevice(), inFlightFences[i], nullptr);
+        }
+        inFlightFences.clear();
+    }
+
     framesInFlight = p_frames_in_flight;
+    swapchainImageCount = p_image_count;
     imageAvailableSemaphores.resize(framesInFlight);
-    renderFinishedSemaphores.resize(framesInFlight);
+    renderFinishedSemaphores.resize(swapchainImageCount);
     inFlightFences.resize(framesInFlight);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -76,9 +98,14 @@ void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight) 
 
     for (size_t i = 0; i < framesInFlight; i++) {
         if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
             vkCreateFence(p_device.getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create synchronization objects for a frame!");
+        }
+    }
+
+    for (size_t i = 0; i < swapchainImageCount; i++) {
+        if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create render-finished semaphores for swapchain images!");
         }
     }
 }
@@ -120,9 +147,12 @@ void Renderer::resetCopyCommandBuffer() {
 
 void Renderer::cleanup(Device& p_device) {
     for (size_t i = 0; i < framesInFlight; i++) {
-        vkDestroySemaphore(p_device.getDevice(), renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(p_device.getDevice(), imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(p_device.getDevice(), inFlightFences[i], nullptr);
+    }
+
+    for (size_t i = 0; i < swapchainImageCount; i++) {
+        vkDestroySemaphore(p_device.getDevice(), renderFinishedSemaphores[i], nullptr);
     }
 
     vkDestroyCommandPool(p_device.getDevice(), commandPool, nullptr);

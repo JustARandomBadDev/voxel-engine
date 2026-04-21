@@ -13,6 +13,8 @@ class SortableMesh;
 struct ChunkRenderState {
     int opaqueAllocId = -1;
     int transparentAllocId = -1;
+    glm::vec3 lastTransparentCameraPos = {0.0f, 0.0f, 0.0f};
+    bool hasTransparentCameraPos = false;
 };
 
 class ChunkRenderStateCache {

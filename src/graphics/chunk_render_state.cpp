@@ -1,8 +1,29 @@
 #include "graphics/chunk_render_state.h"
 
+#include <glm/geometric.hpp>
+
 #include "engine/mesh.h"
 #include "engine/sortable_mesh.h"
 #include "graphics/buffer_manager.h"
+
+namespace {
+constexpr float kTransparentResortCameraDistance = 1.0f;
+constexpr float kTransparentResortCameraDistanceSquared =
+    kTransparentResortCameraDistance * kTransparentResortCameraDistance;
+
+bool shouldResortTransparentMesh(
+    const ChunkRenderState& p_state,
+    bool p_chunk_is_dirty,
+    glm::vec3 p_camera_pos
+) {
+    if (p_chunk_is_dirty) return true;
+    if (p_state.transparentAllocId == -1) return true;
+    if (!p_state.hasTransparentCameraPos) return true;
+
+    const glm::vec3 cameraDelta = p_state.lastTransparentCameraPos - p_camera_pos;
+    return glm::dot(cameraDelta, cameraDelta) >= kTransparentResortCameraDistanceSquared;
+}
+} // namespace
 
 std::string ChunkRenderStateCache::getKey(glm::ivec3 p_chunk_pos) {
     return std::to_string(p_chunk_pos.x) + "," + std::to_string(p_chunk_pos.y) + "," + std::to_string(p_chunk_pos.z);
@@ -25,6 +46,9 @@ void ChunkRenderStateCache::freeTransparentAllocation(ChunkRenderState& p_state,
         p_buffer_manager.getTransparentAllocator().freeMesh(p_state.transparentAllocId, p_buffer_manager);
         p_state.transparentAllocId = -1;
     }
+
+    p_state.hasTransparentCameraPos = false;
+    p_state.lastTransparentCameraPos = {0.0f, 0.0f, 0.0f};
 }
 
 void ChunkRenderStateCache::upload(
@@ -49,12 +73,22 @@ void ChunkRenderStateCache::upload(
     } else freeOpaqueAllocation(state, p_buffer_manager);
 
     if (!p_transparent_mesh.isEmpty()) {
-        p_transparent_mesh.sort(p_camera_pos);
-        state.transparentAllocId = p_buffer_manager.getTransparentAllocator().allocMesh(
-            p_transparent_mesh,
-            state.transparentAllocId,
-            p_buffer_manager
+        const bool mustUpdateTransparent = shouldResortTransparentMesh(
+            state,
+            p_chunk_is_dirty,
+            p_camera_pos
         );
+
+        if (mustUpdateTransparent) {
+            p_transparent_mesh.sort(p_camera_pos);
+            state.transparentAllocId = p_buffer_manager.getTransparentAllocator().allocMesh(
+                p_transparent_mesh,
+                state.transparentAllocId,
+                p_buffer_manager
+            );
+            state.lastTransparentCameraPos = p_camera_pos;
+            state.hasTransparentCameraPos = true;
+        }
     } else freeTransparentAllocation(state, p_buffer_manager);
 }
 

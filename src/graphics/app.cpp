@@ -163,7 +163,7 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
     );
 
     renderer.createCommandBuffers(device, swapchain.getImageCount());
-    renderer.createSyncObjects(device, framesInFlight);
+    renderer.createSyncObjects(device, framesInFlight, swapchain.getImageCount());
 } 
 
 void VulkanApp::recreateSwapchainResources() {
@@ -183,6 +183,7 @@ void VulkanApp::recreateSwapchainResources() {
     );
 
     renderer.createCommandBuffers(device, swapchain.getImageCount());
+    renderer.createSyncObjects(device, renderer.getFramesInFlight(), swapchain.getImageCount());
     renderer.invalidateAllCommandBuffers();
     _last_opaque_indirect_count = bufferManager.getAllocator().getIndirectCount();
     _last_transparent_indirect_count = bufferManager.getTransparentAllocator().getIndirectCount();
@@ -307,7 +308,7 @@ void VulkanApp::drawFrame() {
     const VkCommandBuffer& commandBuffer = renderer.getCommandBuffer(imageIndex);
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    VkSemaphore signalSemaphores[] = {renderer.getCurrentRenderFinishedSemaphore()};
+    VkSemaphore signalSemaphores[] = {renderer.getRenderFinishedSemaphore(imageIndex)};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
