@@ -39,7 +39,6 @@ void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     validateRequiredResourcePath(resources.terrainTexture, "graphicsResources.terrainTexture");
     validateRequiredResourcePath(resources.voxelVertexShader, "graphicsResources.voxelVertexShader");
     validateRequiredResourcePath(resources.voxelFragmentShader, "graphicsResources.voxelFragmentShader");
-    validateRequiredResourcePath(resources.meshingComputeShader, "graphicsResources.meshingComputeShader");
 }
 
 std::string getGlfwErrorMessage() {
@@ -143,9 +142,6 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
         device
     );
 
-    computePipeline.createDescriptorSetLayout(device);
-    computePipeline.createComputePipeline(resources.meshingComputeShader, graphicPipeline, device);
-
     renderer.createCommandPool(device, instance);
     device.createDepthResources(swapchain);
     renderer.createFramebuffers(graphicPipeline, swapchain, device);
@@ -157,19 +153,16 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
     bufferManager.createBuffers(gpu_allocator_config);
     bufferManager.createUniformBuffers(swapchain.getImageCount());
 
-    descriptor.createDescriptorPool(device, swapchain.getImageCount(), framesInFlight);
+    descriptor.createDescriptorPool(device, swapchain.getImageCount());
     descriptor.createDescriptorSets(
         bufferManager,
         texture,
         graphicPipeline,
-        computePipeline,
         device,
-        swapchain.getImageCount(),
-        framesInFlight
+        swapchain.getImageCount()
     );
 
     renderer.createCommandBuffers(device, swapchain.getImageCount());
-    renderer.createComputeCommandBuffers(device, framesInFlight);
     renderer.createSyncObjects(device, framesInFlight);
 } 
 
@@ -180,15 +173,13 @@ void VulkanApp::recreateSwapchainResources() {
     bufferManager.createUniformBuffers(swapchain.getImageCount());
 
     descriptor.cleanup(device);
-    descriptor.createDescriptorPool(device, swapchain.getImageCount(), renderer.getFramesInFlight());
+    descriptor.createDescriptorPool(device, swapchain.getImageCount());
     descriptor.createDescriptorSets(
         bufferManager,
         texture,
         graphicPipeline,
-        computePipeline,
         device,
-        swapchain.getImageCount(),
-        renderer.getFramesInFlight()
+        swapchain.getImageCount()
     );
 
     renderer.createCommandBuffers(device, swapchain.getImageCount());
@@ -207,7 +198,6 @@ void VulkanApp::render() {
 }
 
 void VulkanApp::init(const VoxelEngineInitConfig& config) {
-    generated = 0;
     validateInitConfig(config);
     validateGraphicsResources(config.graphicsResources);
     _cursor_mode = config.cursorMode;
@@ -236,12 +226,10 @@ void VulkanApp::cleanup() {
     swapchain.cleanup(device);
     device.cleanupDepthResources();
     graphicPipeline.cleanup(device);
-    computePipeline.cleanup(device);
     bufferManager.cleanupUniformBuffer();
     descriptor.cleanup(device);
     texture.cleanup(device);
     graphicPipeline.cleanupDescriptorSetLayout(device);
-    computePipeline.cleanupDescriptorSetLayout(device);
     chunkRenderStateCache.cleanup(bufferManager);
     bufferManager.cleanupBuffers();
     renderer.cleanup(device);

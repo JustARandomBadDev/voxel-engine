@@ -5,12 +5,11 @@
 
 struct Voxel {
     uint16_t id = 0;
-    bool transparent = false;
 
     Voxel() = default;
 
     Voxel(uint16_t pid)
-    : id(pid), transparent(false) {}
+    : id(pid) {}
 };
 
 #endif

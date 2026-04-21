@@ -39,7 +39,7 @@ struct VoxelEngineInitConfig {
     float cameraSpeed = 10.0f;
     float mouseSensitivity = 0.1f;
 
-    glm::vec4 clearColor = {0.08f, 0.09f, 0.10f, 1.0f};
+    glm::vec4 clearColor = {0.f, 0.f, 1.f, 1.0f};
     uint32_t framesInFlight = 2;
     bool enableValidationLayers = true;
     GraphicsResourceConfig graphicsResources;

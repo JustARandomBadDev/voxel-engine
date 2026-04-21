@@ -37,8 +37,6 @@ public:
     const VkQueue& getGraphicsQueue() const { return graphicsQueue; }
     VkQueue& getPresentQueue() { return presentQueue; }
     const VkQueue& getPresentQueue() const { return presentQueue; }
-    VkQueue& getComputeQueue() { return computeQueue; }
-    const VkQueue& getComputeQueue() const { return computeQueue; }
     
     VkImage& getDepthImage() { return depthImage; }
     const VkImage& getDepthImage() const { return depthImage; }
@@ -52,7 +50,6 @@ private:
     VkDevice device = VK_NULL_HANDLE;
     VkQueue graphicsQueue = VK_NULL_HANDLE;
     VkQueue presentQueue = VK_NULL_HANDLE;
-    VkQueue computeQueue = VK_NULL_HANDLE;
 
     VkImage depthImage = VK_NULL_HANDLE;
     VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;

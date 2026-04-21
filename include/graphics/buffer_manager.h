@@ -56,23 +56,12 @@ public:
     Buffer& getTransparentIndexBuffers() { return _transparent_allocator.getIndexBuffer(); }
     const Buffer& getTransparentIndexBuffers() const { return _transparent_allocator.getIndexBuffer(); }
 
-    Buffer& getVoxelBuffer() { return voxelBuffer; }
-    const Buffer& getVoxelBuffer() const { return voxelBuffer; }
-    Buffer& getUpdateVoxelBuffer() { return updateVoxelBuffer; }
-    const Buffer& getUpdateVoxelBuffer() const { return updateVoxelBuffer; }
     UniformBuffer& getUniformBuffer(int i) { return uniformBuffers[i]; }
     const UniformBuffer& getUniformBuffer(int i) const { return uniformBuffers[i]; }
-
-
-
 
 private:
     AllocatorManager _opaque_allocator;
     AllocatorManager _transparent_allocator;
-
-
-    Buffer voxelBuffer;
-    Buffer updateVoxelBuffer;
     std::vector<UniformBuffer> uniformBuffers;
 
     Device* _device = nullptr;

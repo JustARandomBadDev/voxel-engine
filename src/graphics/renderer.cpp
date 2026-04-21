@@ -61,27 +61,10 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     }
 }
 
-void Renderer::createComputeCommandBuffers(Device& p_device, uint32_t p_frames_in_flight) {
-    framesInFlight = p_frames_in_flight;
-    computeCommandBuffers.resize(framesInFlight);
-
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t)computeCommandBuffers.size();
-
-    if (vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, computeCommandBuffers.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate compute command buffers!");
-    }
-}
-
 void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight) {
     framesInFlight = p_frames_in_flight;
     imageAvailableSemaphores.resize(framesInFlight);
     renderFinishedSemaphores.resize(framesInFlight);
-    computeInFlightFences.resize(framesInFlight);
-    computeFinishedSemaphores.resize(framesInFlight);
     inFlightFences.resize(framesInFlight);
 
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -96,10 +79,6 @@ void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight) 
             vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
             vkCreateFence(p_device.getDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create synchronization objects for a frame!");
-        }
-        if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &computeFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(p_device.getDevice(), &fenceInfo, nullptr, &computeInFlightFences[i]) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create compute synchronization objects for a frame!");
         }
     }
 }
@@ -143,9 +122,7 @@ void Renderer::cleanup(Device& p_device) {
     for (size_t i = 0; i < framesInFlight; i++) {
         vkDestroySemaphore(p_device.getDevice(), renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(p_device.getDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroySemaphore(p_device.getDevice(), computeFinishedSemaphores[i], nullptr);
         vkDestroyFence(p_device.getDevice(), inFlightFences[i], nullptr);
-        vkDestroyFence(p_device.getDevice(), computeInFlightFences[i], nullptr);
     }
 
     vkDestroyCommandPool(p_device.getDevice(), commandPool, nullptr);

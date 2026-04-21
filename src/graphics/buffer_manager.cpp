@@ -27,24 +27,6 @@ void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_conf
 
     _opaque_allocator.init(*_device, p_gpu_allocator_config);
     _transparent_allocator.init(*_device, p_gpu_allocator_config);
-
-    VkDeviceSize bufferSize = 1;
-
-    voxelBuffer.createBuffer(bufferSize,
-                            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                            *_device
-    );
-
-    updateVoxelBuffer.createBuffer(bufferSize,
-                                VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-                                VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                *_device
-    );
 }
 
 void BufferManager::createUniformBuffers(uint32_t p_frames_in_flight) {
@@ -226,8 +208,6 @@ void BufferManager::cleanupBuffers() {
     _pending_copies.clear();
     _opaque_allocator.cleanup();
     _transparent_allocator.cleanup();
-    voxelBuffer.cleanup();
-    updateVoxelBuffer.cleanup();
 }
 
 void BufferManager::cleanupUniformBuffer() {

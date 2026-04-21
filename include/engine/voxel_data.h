@@ -4,7 +4,6 @@
 #include <vector>
 
 struct VoxelData {
-    int textures;
     float shininess;
     bool transparent;
 };

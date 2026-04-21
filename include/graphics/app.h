@@ -9,7 +9,6 @@
 #include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
 #include "graphics/chunk_render_state.h"
-#include "graphics/compute_pipeline.h"
 #include "graphics/descriptor.h"
 #include "graphics/device.h"
 #include "graphics/instance.h"
@@ -57,12 +56,10 @@ private:
     Texture texture;
     Descriptor descriptor;
     GraphicPipeline graphicPipeline;
-    ComputePipeline computePipeline;
 
     Camera camera;
 
     bool framebufferResized = false;
-    int generated;
     uint32_t _last_opaque_indirect_count = 0;
     uint32_t _last_transparent_indirect_count = 0;
     WindowCursorMode _cursor_mode = WindowCursorMode::Captured;
@@ -74,8 +71,6 @@ private:
     void initWindow(const VoxelEngineInitConfig& config);
     void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight, bool p_enable_validation_layers);
     void recreateSwapchainResources();
-
-    void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);
 
     static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
     static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
