@@ -1,93 +1,146 @@
 #include "engine/voxel_engine.h"
 
+#include <memory>
+
+#include "core/config.h"
+#include "engine/chunk_mesh_registry.h"
+#include "engine/chunk_mesher.h"
+#include "engine/chunk_render_sync.h"
+#include "engine/voxel_data.h"
+#include "graphics/app.h"
+#include "world/chunk_manager.h"
+
+namespace {
+
+bool checkLocalPos(glm::ivec3 local_voxel_pos) {
+    return local_voxel_pos.x >= 0 && local_voxel_pos.x < CHUNK_SIZE &&
+           local_voxel_pos.y >= 0 && local_voxel_pos.y < CHUNK_SIZE &&
+           local_voxel_pos.z >= 0 && local_voxel_pos.z < CHUNK_SIZE;
+}
+
+} // namespace
+
+class VoxelEngine::Impl {
+public:
+    VulkanApp app;
+    ChunkManager chunk_manager;
+    ChunkMesher chunk_mesher;
+    ChunkMeshRegistry chunk_mesh_registry;
+    ChunkRenderSync chunk_render_sync;
+
+    void markChunkDirtyIfLoaded(glm::ivec3 chunk_pos) {
+        Chunk* chunk = chunk_manager.getChunk(chunk_pos);
+        if (chunk) chunk->markDirty();
+    }
+
+    void markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) {
+        if (local_voxel_pos.x == 0)                   markChunkDirtyIfLoaded({chunk_pos.x - 1, chunk_pos.y, chunk_pos.z});
+        else if (local_voxel_pos.x == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x + 1, chunk_pos.y, chunk_pos.z});
+
+        if (local_voxel_pos.y == 0)                   markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y - 1, chunk_pos.z});
+        else if (local_voxel_pos.y == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y + 1, chunk_pos.z});
+
+        if (local_voxel_pos.z == 0)                   markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z - 1});
+        else if (local_voxel_pos.z == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z + 1});
+    }
+
+    void markAdjacentChunksDirty(glm::ivec3 chunk_pos) {
+        markChunkDirtyIfLoaded({chunk_pos.x - 1, chunk_pos.y, chunk_pos.z});
+        markChunkDirtyIfLoaded({chunk_pos.x + 1, chunk_pos.y, chunk_pos.z});
+        markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y - 1, chunk_pos.z});
+        markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y + 1, chunk_pos.z});
+        markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z - 1});
+        markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z + 1});
+    }
+};
+
+VoxelEngine::VoxelEngine()
+: _impl(std::make_unique<Impl>()) {}
+
+VoxelEngine::~VoxelEngine() = default;
+
+VoxelEngine::VoxelEngine(VoxelEngine&&) noexcept = default;
+
+VoxelEngine& VoxelEngine::operator=(VoxelEngine&&) noexcept = default;
+
 void VoxelEngine::init(const VoxelEngineInitConfig& config) {
-    _app.init(config);
+    _impl->app.init(config);
 }
 
 void VoxelEngine::update() {
-    _chunk_mesher.updateAll(_chunk_manager, _chunk_mesh_registry);
-    _chunk_render_sync.syncAll(
-        _chunk_manager,
-        _chunk_mesh_registry,
-        _app.getChunkRenderStateCache(),
-        _app.getCamera()->getPosition(),
-        _app.getBufferManager()
+    _impl->chunk_mesher.updateAll(_impl->chunk_manager, _impl->chunk_mesh_registry);
+    _impl->chunk_render_sync.syncAll(
+        _impl->chunk_manager,
+        _impl->chunk_mesh_registry,
+        _impl->app.getChunkRenderStateCache(),
+        _impl->app.getCamera()->getPosition(),
+        _impl->app.getBufferManager()
     );
 }
 
 void VoxelEngine::render() {
-    _app.render();
+    _impl->app.render();
 }
 
 void VoxelEngine::shutdown() {
-    _app.cleanup();
+    _impl->app.cleanup();
 }
 
 bool VoxelEngine::isRun() const {
-    return _app.isRun();
+    return _impl->app.isRun();
 }
 
 void VoxelEngine::createChunk(glm::ivec3 pos) {
-    _chunk_manager.addChunk(pos);
+    _impl->chunk_manager.addChunk(pos);
 }
 
 void VoxelEngine::removeChunk(glm::ivec3 pos) {
-    markAdjacentChunksDirty(pos);
-    _chunk_render_sync.removeChunk(
+    _impl->markAdjacentChunksDirty(pos);
+    _impl->chunk_render_sync.removeChunk(
         pos,
-        _chunk_mesh_registry,
-        _app.getChunkRenderStateCache(),
-        _app.getBufferManager()
+        _impl->chunk_mesh_registry,
+        _impl->app.getChunkRenderStateCache(),
+        _impl->app.getBufferManager()
     );
-    _chunk_manager.removeChunk(pos);
+    _impl->chunk_manager.removeChunk(pos);
 }
 
 void VoxelEngine::setVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos, Voxel voxel) {
     if (!checkLocalPos(local_voxel_pos)) return;
-    
-    if (voxel.id <= 0 || static_cast<size_t>(voxel.id - 1) >= VOXEL_DATAS.size()) return;
-    
-    Chunk* chunk = _chunk_manager.getChunk(chunk_pos);
+
+    if (voxel.id == 0) {
+        removeVoxel(chunk_pos, local_voxel_pos);
+        return;
+    }
+
+    if (static_cast<size_t>(voxel.id - 1) >= VOXEL_DATAS.size()) return;
+
+    Chunk* chunk = _impl->chunk_manager.getChunk(chunk_pos);
     if (!chunk) {
-        chunk = _chunk_manager.addChunk(chunk_pos);
+        chunk = _impl->chunk_manager.addChunk(chunk_pos);
     }
 
     chunk->addVoxel(local_voxel_pos, voxel);
-    markNeighborChunksDirty(chunk_pos, local_voxel_pos);
+    _impl->markNeighborChunksDirty(chunk_pos, local_voxel_pos);
+}
+
+void VoxelEngine::removeVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) {
+    if (!checkLocalPos(local_voxel_pos)) return;
+
+    Chunk* chunk = _impl->chunk_manager.getChunk(chunk_pos);
+    if (!chunk) return;
+
+    chunk->removeVoxel(local_voxel_pos);
+    _impl->markNeighborChunksDirty(chunk_pos, local_voxel_pos);
 }
 
 Voxel VoxelEngine::getVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) const {
     if (!checkLocalPos(local_voxel_pos)) return Voxel(0);
 
-    const Chunk* chunk = _chunk_manager.getChunk(chunk_pos);
+    const Chunk* chunk = _impl->chunk_manager.getChunk(chunk_pos);
     if (!chunk) {
         return Voxel(0);
     }
 
     return chunk->getVoxel(local_voxel_pos.x, local_voxel_pos.y, local_voxel_pos.z);
-}
-
-void VoxelEngine::markChunkDirtyIfLoaded(glm::ivec3 chunk_pos) {
-    Chunk* chunk = _chunk_manager.getChunk(chunk_pos);
-    if (chunk) chunk->markDirty();
-}
-
-void VoxelEngine::markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) {
-    if (local_voxel_pos.x == 0)                   markChunkDirtyIfLoaded({chunk_pos.x - 1, chunk_pos.y, chunk_pos.z});
-    else if (local_voxel_pos.x == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x + 1, chunk_pos.y, chunk_pos.z});
-
-    if (local_voxel_pos.y == 0)                   markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y - 1, chunk_pos.z});
-    else if (local_voxel_pos.y == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y + 1, chunk_pos.z});
-
-    if (local_voxel_pos.z == 0)                   markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z - 1});
-    else if (local_voxel_pos.z == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z + 1});
-}
-
-void VoxelEngine::markAdjacentChunksDirty(glm::ivec3 chunk_pos) {
-    markChunkDirtyIfLoaded({chunk_pos.x - 1, chunk_pos.y, chunk_pos.z});
-    markChunkDirtyIfLoaded({chunk_pos.x + 1, chunk_pos.y, chunk_pos.z});
-    markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y - 1, chunk_pos.z});
-    markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y + 1, chunk_pos.z});
-    markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z - 1});
-    markChunkDirtyIfLoaded({chunk_pos.x, chunk_pos.y, chunk_pos.z + 1});
 }

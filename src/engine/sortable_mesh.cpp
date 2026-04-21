@@ -17,6 +17,11 @@ void SortableMesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_nor
     });
 }
 
+void SortableMesh::clear() {
+    Mesh::clear();
+    _faces.clear();
+}
+
 void SortableMesh::sort(glm::vec3 p_camera_pos) {
     for (FaceData& face : _faces) {
         face.distance = glm::distance(p_camera_pos, face.center);
@@ -26,7 +31,7 @@ void SortableMesh::sort(glm::vec3 p_camera_pos) {
         return a.distance > b.distance;
     });
 
-    clear();
+    Mesh::clear();
 
     for (FaceData face : _faces) {
         Mesh::add(face);

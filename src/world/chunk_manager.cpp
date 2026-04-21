@@ -5,7 +5,6 @@ Chunk* ChunkManager::addChunk(glm::ivec3 pos) {
     auto it = chunks.find(key);
     if (it != chunks.end() && it->second) return it->second.get();
     auto chunk = std::make_unique<Chunk>(pos);
-    chunk->init();
     auto [insertedIt, inserted] = chunks.emplace(key, std::move(chunk));
     (void)inserted;
     return insertedIt->second.get();

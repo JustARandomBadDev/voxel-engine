@@ -8,11 +8,10 @@
 
 class Chunk {
 public:
-    Chunk();
-    Chunk(glm::ivec3 p_pos);
-    ~Chunk();
+    Chunk() = default;
+    explicit Chunk(glm::ivec3 p_pos);
+    ~Chunk() = default;
 
-    void init();
     void addVoxel(glm::ivec3 p_pos, Voxel p_voxel);
     void removeVoxel(glm::ivec3 p_pos) { addVoxel(p_pos, Voxel(0)); };
 
@@ -42,11 +41,9 @@ public:
     }
 
 private:
-    glm::ivec3 _pos;
-
-    Voxel _voxels[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE];
-
-    bool _is_modify;
+    glm::ivec3 _pos = {0, 0, 0};
+    Voxel _voxels[CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] = {};
+    bool _is_modify = false;
 };
 
 #endif

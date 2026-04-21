@@ -21,7 +21,6 @@ public:
     Allocator(int p_flag, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging, Device& p_device);
     
     void alloc(const void* p_data, uint32_t p_size, uint32_t p_srcOffset, uint32_t p_dstOffset, BufferManager& p_buffer_manager);
-    void extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset, BufferManager& p_buffer_manager);
 
     void cleanup();
 

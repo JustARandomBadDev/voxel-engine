@@ -1,16 +1,24 @@
 #ifndef VOXEL_ENGINE_H
 #define VOXEL_ENGINE_H
 
-#include "engine/chunk_mesh_registry.h"
-#include "engine/chunk_mesher.h"
-#include "engine/chunk_render_sync.h"
+#include <memory>
+
+#include <glm/glm.hpp>
+
+#include "core/config.h"
 #include "engine/voxel_engine_config.h"
-#include "graphics/app.h"
-#include "world/chunk_manager.h"
 #include "world/voxel.h"
 
 class VoxelEngine {
 public:
+    VoxelEngine();
+    ~VoxelEngine();
+
+    VoxelEngine(const VoxelEngine&) = delete;
+    VoxelEngine& operator=(const VoxelEngine&) = delete;
+    VoxelEngine(VoxelEngine&&) noexcept;
+    VoxelEngine& operator=(VoxelEngine&&) noexcept;
+
     void init(const VoxelEngineInitConfig& config);
     void update();
     void render();
@@ -19,24 +27,12 @@ public:
     void createChunk(glm::ivec3 pos);
     void removeChunk(glm::ivec3 pos);
     void setVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos, Voxel voxel);
+    void removeVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos);
     Voxel getVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) const;
 
 private:
-    VulkanApp _app;
-    ChunkManager _chunk_manager;
-    ChunkMesher _chunk_mesher;
-    ChunkMeshRegistry _chunk_mesh_registry;
-    ChunkRenderSync _chunk_render_sync;
-
-    void markChunkDirtyIfLoaded(glm::ivec3 chunk_pos);
-    void markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos);
-    void markAdjacentChunksDirty(glm::ivec3 chunk_pos);
-
-    bool checkLocalPos(glm::ivec3 local_voxel_pos) const {
-        return local_voxel_pos.x >= 0 && local_voxel_pos.x < CHUNK_SIZE &&
-               local_voxel_pos.y >= 0 && local_voxel_pos.y < CHUNK_SIZE &&
-               local_voxel_pos.z >= 0 && local_voxel_pos.z < CHUNK_SIZE;
-    }
+    class Impl;
+    std::unique_ptr<Impl> _impl;
 };
 
 #endif
