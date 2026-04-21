@@ -50,6 +50,10 @@ void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_conf
 void BufferManager::createUniformBuffers(uint32_t p_frames_in_flight) {
     ensureConfigured("createUniformBuffers()");
 
+    if (!uniformBuffers.empty()) {
+        cleanupUniformBuffer();
+    }
+
     uniformBuffers.resize(p_frames_in_flight);
 
     for (size_t i = 0; i < p_frames_in_flight; i++) {
@@ -208,4 +212,6 @@ void BufferManager::cleanupUniformBuffer() {
     for (auto& ubo : uniformBuffers) {
         ubo.cleanup();
     }
+
+    uniformBuffers.clear();
 }

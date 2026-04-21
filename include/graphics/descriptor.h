@@ -13,8 +13,8 @@ class Texture;
 
 class Descriptor {
 public:
-    void createDescriptorPool(Device& p_device, uint32_t p_frames_in_flight);
-    void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_frames_in_flight);
+    void createDescriptorPool(Device& p_device, uint32_t p_image_count, uint32_t p_frames_in_flight);
+    void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_image_count, uint32_t p_frames_in_flight);
     void cleanup(Device& p_device);
 
     const std::vector<VkDescriptorSet>& getDescriptorSets() const { return descriptorSets; }

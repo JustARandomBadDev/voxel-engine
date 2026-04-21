@@ -63,12 +63,15 @@ private:
 
     bool framebufferResized = false;
     int generated;
+    uint32_t _last_opaque_indirect_count = 0;
+    uint32_t _last_transparent_indirect_count = 0;
 
     float deltaTime = 0;
     float lastFrame = 0;
 
     void initWindow();
-    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config);
+    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight);
+    void recreateSwapchainResources();
 
     void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);
 

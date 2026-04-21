@@ -18,7 +18,7 @@ class Renderer;
 
 class Swapchain {
 public:
-    void createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device);
+    void createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight);
     void recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device);
     void createImageViews(Device& p_device);
     void cleanup(Device& p_device);
@@ -34,7 +34,7 @@ public:
     const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) const { return swapChainFramebuffers[imageIndex]; }
 
     float    getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
-    uint32_t getFramesInFlight() const { return frames_in_flight; }
+    uint32_t getImageCount() const { return imageCount; }
 
     void addSwapChainFramebuffers(VkFramebuffer pframeBuffer);
 
@@ -46,7 +46,7 @@ private:
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
-    uint32_t frames_in_flight;
+    uint32_t imageCount = 0;
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);

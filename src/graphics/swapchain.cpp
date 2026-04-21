@@ -8,28 +8,31 @@
 #include "graphics/instance.h"
 #include "graphics/renderer.h"
 
-void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device) {
+void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(p_device.getPhysicalDevice(), p_instance);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
     VkExtent2D extent = chooseSwapExtent(window, swapChainSupport.capabilities);
 
-    frames_in_flight = swapChainSupport.capabilities.minImageCount+1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && frames_in_flight > swapChainSupport.capabilities.maxImageCount) {
-        frames_in_flight = swapChainSupport.capabilities.maxImageCount;
-    }
+    uint32_t requestedImageCount = std::max(
+        p_frames_in_flight,
+        swapChainSupport.capabilities.minImageCount + 1
+    );
 
-    // std::cout << "Swapchain Capabilities : " << std::endl;
-    // std::cout << "  Max : " << swapChainSupport.capabilities.minImageCount << std::endl;
-    // std::cout << "  Min : " << swapChainSupport.capabilities.maxImageCount << std::endl;
-    // std::cout << "  Current : " << frames_in_flight << std::endl;
+    if (swapChainSupport.capabilities.maxImageCount > 0) {
+        if (p_frames_in_flight > swapChainSupport.capabilities.maxImageCount) {
+            throw std::runtime_error("Swapchain::createSwapChain() -> configured framesInFlight exceeds supported swapchain image count");
+        }
+
+        requestedImageCount = std::min(requestedImageCount, swapChainSupport.capabilities.maxImageCount);
+    }
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = p_instance.getSurface();
 
-    createInfo.minImageCount = frames_in_flight;
+    createInfo.minImageCount = requestedImageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
@@ -56,9 +59,9 @@ void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device
         throw std::runtime_error("failed to create swap chain!");
     }
 
-    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &frames_in_flight, nullptr);
-    swapChainImages.resize(frames_in_flight);
-    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &frames_in_flight, swapChainImages.data());
+    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &imageCount, swapChainImages.data());
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
@@ -75,8 +78,9 @@ void Swapchain::recreateSwapChain(GLFWwindow* window, Instance& p_instance, Grap
     vkDeviceWaitIdle(p_device.getDevice());
 
     cleanup(p_device);
+    p_device.cleanupDepthResources();
 
-    createSwapChain(window, p_instance, p_device);
+    createSwapChain(window, p_instance, p_device, p_renderer.getFramesInFlight());
     createImageViews(p_device);
     p_device.createDepthResources(*this);
     p_renderer.createFramebuffers(p_graphic_pipeline, *this, p_device);
@@ -91,10 +95,6 @@ void Swapchain::createImageViews(Device& p_device) {
 }
 
 void Swapchain::cleanup(Device& p_device) {
-    vkDestroyImageView(p_device.getDevice(), p_device.getDepthImageView(), nullptr);
-    vkDestroyImage(p_device.getDevice(), p_device.getDepthImage(), nullptr);
-    vkFreeMemory(p_device.getDevice(), p_device.getDepthImageMemory(), nullptr);
-
     for (auto framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(p_device.getDevice(), framebuffer, nullptr);
     }
@@ -104,9 +104,12 @@ void Swapchain::cleanup(Device& p_device) {
     }
 
     swapChainFramebuffers.clear();
+    swapChainImages.clear();
     swapChainImageViews.clear();
+    imageCount = 0;
 
     vkDestroySwapchainKHR(p_device.getDevice(), swapChain, nullptr);
+    swapChain = VK_NULL_HANDLE;
 }
 
 VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) const {

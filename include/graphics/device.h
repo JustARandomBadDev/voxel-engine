@@ -22,6 +22,7 @@ public:
     void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);
     void createLogicalDevice(Instance& p_instance);
     void createDepthResources(Swapchain& p_swapchain);
+    void cleanupDepthResources();
     void cleanup();
 
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const;
@@ -48,14 +49,14 @@ public:
 
 private:
     VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-    VkDevice device;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-    VkQueue computeQueue;
+    VkDevice device = VK_NULL_HANDLE;
+    VkQueue graphicsQueue = VK_NULL_HANDLE;
+    VkQueue presentQueue = VK_NULL_HANDLE;
+    VkQueue computeQueue = VK_NULL_HANDLE;
 
-    VkImage depthImage;
-    VkDeviceMemory depthImageMemory;
-    VkImageView depthImageView;
+    VkImage depthImage = VK_NULL_HANDLE;
+    VkDeviceMemory depthImageMemory = VK_NULL_HANDLE;
+    VkImageView depthImageView = VK_NULL_HANDLE;
 
     bool isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) const;
     bool checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const;

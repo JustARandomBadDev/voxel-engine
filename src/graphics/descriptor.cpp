@@ -11,48 +11,49 @@
 #include "graphics/buffer_manager.h"
 #include "graphics/uniform_buffer.h"
 
-void Descriptor::createDescriptorPool(Device& p_device, uint32_t p_frames_in_flight) {
+void Descriptor::createDescriptorPool(Device& p_device, uint32_t p_image_count, uint32_t p_frames_in_flight) {
     std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[0].descriptorCount = p_frames_in_flight * 4;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[1].descriptorCount = p_frames_in_flight;
+    poolSizes[1].descriptorCount = p_image_count;
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[2].descriptorCount = p_frames_in_flight;
+    poolSizes[2].descriptorCount = p_image_count;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = p_frames_in_flight * 4;
+    poolInfo.maxSets = p_image_count + p_frames_in_flight;
 
     if (vkCreateDescriptorPool(p_device.getDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create descriptor pool!");
     }
 }
 
-void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_frames_in_flight) {
-    std::vector<VkDescriptorSetLayout> layouts(p_frames_in_flight, p_graphic_pipeline.getDescriptorSetLayout());
+void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_image_count, uint32_t p_frames_in_flight) {
+    std::vector<VkDescriptorSetLayout> layouts(p_image_count, p_graphic_pipeline.getDescriptorSetLayout());
     std::vector<VkDescriptorSetLayout> computeLayouts(p_frames_in_flight, p_compute_pipeline.getDescriptorSetLayout());
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = p_frames_in_flight;
+    allocInfo.descriptorSetCount = p_image_count;
 
     allocInfo.pSetLayouts = layouts.data();
-    descriptorSets.resize(p_frames_in_flight);
+    descriptorSets.resize(p_image_count);
     if (vkAllocateDescriptorSets(p_device.getDevice(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
+    allocInfo.descriptorSetCount = p_frames_in_flight;
     allocInfo.pSetLayouts = computeLayouts.data();
     computeDescriptorSets.resize(p_frames_in_flight);
     if (vkAllocateDescriptorSets(p_device.getDevice(), &allocInfo, computeDescriptorSets.data()) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate descriptor sets for compute!");
     }
 
-    for (size_t i = 0; i < p_frames_in_flight; i++) {
+    for (size_t i = 0; i < p_image_count; i++) {
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = p_buffer_manager.getUniformBuffer(i).getBuffer();
         bufferInfo.offset = 0;
@@ -153,4 +154,6 @@ void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& 
 
 void Descriptor::cleanup(Device& p_device) {
     vkDestroyDescriptorPool(p_device.getDevice(), descriptorPool, nullptr);
+    descriptorSets.clear();
+    computeDescriptorSets.clear();
 }

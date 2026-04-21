@@ -23,6 +23,7 @@ struct GpuAllocatorConfig {
 struct VoxelEngineInitConfig {
     glm::vec3 cameraPos;
     float fov = 0.0f;
+    uint32_t framesInFlight = 2;
     GraphicsResourceConfig graphicsResources;
     GpuAllocatorConfig gpuAllocator;
 };

@@ -83,17 +83,17 @@ void ComputePipeline::dispatchCompute(Descriptor& p_descriptor, Renderer& p_rend
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
 
-    if (vkBeginCommandBuffer(p_renderer.getCurrentCommandBuffers(), &beginInfo) != VK_SUCCESS) {
+    if (vkBeginCommandBuffer(p_renderer.getCurrentComputeCommandBuffers(), &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer for compute!");
     }
 
-    vkCmdBindPipeline(p_renderer.getCurrentCommandBuffers(), VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
+    vkCmdBindPipeline(p_renderer.getCurrentComputeCommandBuffers(), VK_PIPELINE_BIND_POINT_COMPUTE, computePipeline);
 
-    vkCmdBindDescriptorSets(p_renderer.getCurrentCommandBuffers(), VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &p_descriptor.getComputeDescriptorSets(p_renderer.getCurrentFrame()), 0, nullptr);
+    vkCmdBindDescriptorSets(p_renderer.getCurrentComputeCommandBuffers(), VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &p_descriptor.getComputeDescriptorSets(p_renderer.getCurrentFrame()), 0, nullptr);
 
-    vkCmdDispatch(p_renderer.getCurrentCommandBuffers(), 1, 1, 1);
+    vkCmdDispatch(p_renderer.getCurrentComputeCommandBuffers(), 1, 1, 1);
 
-    if (vkEndCommandBuffer(p_renderer.getCurrentCommandBuffers()) != VK_SUCCESS) {
+    if (vkEndCommandBuffer(p_renderer.getCurrentComputeCommandBuffers()) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer for compute!");
     }
 
@@ -101,7 +101,7 @@ void ComputePipeline::dispatchCompute(Descriptor& p_descriptor, Renderer& p_rend
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &p_renderer.getCurrentCommandBuffers();
+    submitInfo.pCommandBuffers = &p_renderer.getCurrentComputeCommandBuffers();
 
     if (vkQueueSubmit(p_device.getComputeQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
         throw std::runtime_error("failed to submit compute command buffer!");

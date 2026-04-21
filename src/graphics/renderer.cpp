@@ -21,9 +21,19 @@ void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
     }
 }
 
-void Renderer::createCommandBuffers(Device& p_device, uint32_t p_frames_in_flight) {
-    framesInFlight = p_frames_in_flight;
-    commandBuffers.resize(framesInFlight);
+void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
+    if (!commandBuffers.empty()) {
+        vkFreeCommandBuffers(
+            p_device.getDevice(),
+            commandPool,
+            static_cast<uint32_t>(commandBuffers.size()),
+            commandBuffers.data()
+        );
+        commandBuffers.clear();
+    }
+
+    swapchainImageCount = p_image_count;
+    commandBuffers.resize(swapchainImageCount);
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -35,19 +45,19 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_frames_in_fligh
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
-    commandBufferState.resize(framesInFlight);
-    for (uint32_t i = 0; i < framesInFlight; i++) {
-        commandBufferState.at(i) = false;
-    }
+    commandBufferDirty.assign(swapchainImageCount, true);
+    currentFrame = framesInFlight == 0 ? 0 : (currentFrame % framesInFlight);
 
-    VkCommandBufferAllocateInfo copyAllocInfo{};
-    copyAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    copyAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    copyAllocInfo.commandPool = commandPool;
-    copyAllocInfo.commandBufferCount = 1;
+    if (copyCommandBuffer == VK_NULL_HANDLE) {
+        VkCommandBufferAllocateInfo copyAllocInfo{};
+        copyAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        copyAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        copyAllocInfo.commandPool = commandPool;
+        copyAllocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(p_device.getDevice(), &copyAllocInfo, &copyCommandBuffer) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate command buffers!");
+        if (vkAllocateCommandBuffers(p_device.getDevice(), &copyAllocInfo, &copyCommandBuffer) != VK_SUCCESS) {
+            throw std::runtime_error("failed to allocate command buffers!");
+        }
     }
 }
 
@@ -119,9 +129,9 @@ void Renderer::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain
     }
 }
 
-void Renderer::resetCommandBuffers() {
-    for (uint32_t i = 0; i < framesInFlight; i++) {
-        commandBufferState[i] = false;
+void Renderer::invalidateAllCommandBuffers() {
+    for (uint32_t i = 0; i < swapchainImageCount; i++) {
+        commandBufferDirty[i] = true;
     }
 }
 

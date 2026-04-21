@@ -16,7 +16,6 @@ void VoxelEngine::update() {
 }
 
 void VoxelEngine::render() {
-    _app.getRenderer().resetCommandBuffers();
     _app.render();
 }
 

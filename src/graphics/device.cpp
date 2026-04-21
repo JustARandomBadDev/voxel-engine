@@ -80,6 +80,26 @@ void Device::createDepthResources(Swapchain& p_swapchain) {
     depthImageView = p_swapchain.createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, *this);
 }
 
+void Device::cleanupDepthResources() {
+    if (device == VK_NULL_HANDLE) return;
+
+    if (depthImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, depthImageView, nullptr);
+    }
+
+    if (depthImage != VK_NULL_HANDLE) {
+        vkDestroyImage(device, depthImage, nullptr);
+    }
+
+    if (depthImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, depthImageMemory, nullptr);
+    }
+
+    depthImageView = VK_NULL_HANDLE;
+    depthImage = VK_NULL_HANDLE;
+    depthImageMemory = VK_NULL_HANDLE;
+}
+
 void Device::cleanup() {
     vkDestroyDevice(device, nullptr);
 }

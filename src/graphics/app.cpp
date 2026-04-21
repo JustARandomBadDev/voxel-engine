@@ -57,7 +57,7 @@ void VulkanApp::initWindow() {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
-void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config) {
+void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight) {
     instance.createInstance();
     instance.setupDebugMessenger();
     instance.createSurface(window);
@@ -67,7 +67,12 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
 
     bufferManager.configure(device, renderer);
 
-    swapchain.createSwapChain(window, instance, device);
+    if (p_frames_in_flight == 0) {
+        throw std::runtime_error("VulkanApp::initVulkan() -> framesInFlight must be greater than 0");
+    }
+
+    const uint32_t framesInFlight = p_frames_in_flight;
+    swapchain.createSwapChain(window, instance, device, framesInFlight);
     swapchain.createImageViews(device);
 
     graphicPipeline.createRenderPass(swapchain, device);
@@ -90,22 +95,48 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
     texture.createTextureSampler(device);
 
     bufferManager.createBuffers(gpu_allocator_config);
-    bufferManager.createUniformBuffers(swapchain.getFramesInFlight());
+    bufferManager.createUniformBuffers(swapchain.getImageCount());
 
-    descriptor.createDescriptorPool(device, swapchain.getFramesInFlight());
+    descriptor.createDescriptorPool(device, swapchain.getImageCount(), framesInFlight);
     descriptor.createDescriptorSets(
         bufferManager,
         texture,
         graphicPipeline,
         computePipeline,
         device,
-        swapchain.getFramesInFlight()
+        swapchain.getImageCount(),
+        framesInFlight
     );
 
-    renderer.createCommandBuffers(device, swapchain.getFramesInFlight());
-    renderer.createComputeCommandBuffers(device, swapchain.getFramesInFlight());
-    renderer.createSyncObjects(device, swapchain.getFramesInFlight());
+    renderer.createCommandBuffers(device, swapchain.getImageCount());
+    renderer.createComputeCommandBuffers(device, framesInFlight);
+    renderer.createSyncObjects(device, framesInFlight);
 } 
+
+void VulkanApp::recreateSwapchainResources() {
+    swapchain.recreateSwapChain(window, instance, graphicPipeline, renderer, device);
+
+    bufferManager.cleanupUniformBuffer();
+    bufferManager.createUniformBuffers(swapchain.getImageCount());
+
+    descriptor.cleanup(device);
+    descriptor.createDescriptorPool(device, swapchain.getImageCount(), renderer.getFramesInFlight());
+    descriptor.createDescriptorSets(
+        bufferManager,
+        texture,
+        graphicPipeline,
+        computePipeline,
+        device,
+        swapchain.getImageCount(),
+        renderer.getFramesInFlight()
+    );
+
+    renderer.createCommandBuffers(device, swapchain.getImageCount());
+    renderer.invalidateAllCommandBuffers();
+    _last_opaque_indirect_count = bufferManager.getAllocator().getIndirectCount();
+    _last_transparent_indirect_count = bufferManager.getTransparentAllocator().getIndirectCount();
+    camera.updateProjection(swapchain.getAspectRatio());
+}
 
 void VulkanApp::render() {
     bufferManager.applyCopies();
@@ -121,7 +152,9 @@ void VulkanApp::init(const VoxelEngineInitConfig& config) {
     camera = Camera(config.cameraPos, config.fov, 0);
 
     initWindow();
-    initVulkan(config.graphicsResources, config.gpuAllocator);
+    initVulkan(config.graphicsResources, config.gpuAllocator, config.framesInFlight);
+    _last_opaque_indirect_count = bufferManager.getAllocator().getIndirectCount();
+    _last_transparent_indirect_count = bufferManager.getTransparentAllocator().getIndirectCount();
 
     camera.updateProjection(swapchain.getAspectRatio());
 }
@@ -130,6 +163,7 @@ void VulkanApp::cleanup() {
     vkDeviceWaitIdle(device.getDevice());
 
     swapchain.cleanup(device);
+    device.cleanupDepthResources();
     graphicPipeline.cleanup(device);
     computePipeline.cleanup(device);
     bufferManager.cleanupUniformBuffer();
@@ -148,6 +182,15 @@ void VulkanApp::cleanup() {
 }
 
 void VulkanApp::drawFrame() {
+    const uint32_t opaqueIndirectCount = bufferManager.getAllocator().getIndirectCount();
+    const uint32_t transparentIndirectCount = bufferManager.getTransparentAllocator().getIndirectCount();
+    if (opaqueIndirectCount != _last_opaque_indirect_count ||
+        transparentIndirectCount != _last_transparent_indirect_count) {
+        renderer.invalidateAllCommandBuffers();
+        _last_opaque_indirect_count = opaqueIndirectCount;
+        _last_transparent_indirect_count = transparentIndirectCount;
+    }
+
     std::vector<VkSemaphore> waitSemaphores = {renderer.getCurrentImageAvailableSemaphores()};
     std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
@@ -170,16 +213,14 @@ void VulkanApp::drawFrame() {
     );
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-        swapchain.recreateSwapChain(window, instance, graphicPipeline, renderer, device);
-        renderer.resetCommandBuffers();
-        camera.updateProjection(swapchain.getAspectRatio());
+        recreateSwapchainResources();
         return;
     } else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
     bufferManager.updateUniformBuffer(
-        renderer.getCurrentFrame(),
+        imageIndex,
         camera.getPosition(),
         camera.getProjectionMatrix()*camera.getViewMatrix(),
         {1, -1, 1},
@@ -189,9 +230,9 @@ void VulkanApp::drawFrame() {
     vkResetFences(device.getDevice(), 1, &renderer.getCurrentInFlightFences());
 
 
-    if (!renderer.getCurrentCommandBuffersState()) {
+    if (renderer.isCommandBufferDirty(imageIndex)) {
         recordCommandBuffer(imageIndex);
-        renderer.setCurrentCommandBuffersState(true);
+        renderer.setCommandBufferDirty(imageIndex, false);
     }
 
     VkSubmitInfo submitInfo{};
@@ -201,9 +242,10 @@ void VulkanApp::drawFrame() {
     submitInfo.pWaitDstStageMask = waitStages.data();
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &renderer.getCurrentCommandBuffers();
+    const VkCommandBuffer& commandBuffer = renderer.getCommandBuffer(imageIndex);
+    submitInfo.pCommandBuffers = &commandBuffer;
 
-    VkSemaphore signalSemaphores[] = {renderer.getRenderFinishedSemaphore(imageIndex)};
+    VkSemaphore signalSemaphores[] = {renderer.getCurrentRenderFinishedSemaphore()};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -227,9 +269,7 @@ void VulkanApp::drawFrame() {
 
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
         framebufferResized = false;
-        swapchain.recreateSwapChain(window, instance, graphicPipeline, renderer, device);
-        renderer.resetCommandBuffers();
-        camera.updateProjection(swapchain.getAspectRatio());
+        recreateSwapchainResources();
     } else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to present swap chain image!");
     }
@@ -238,7 +278,9 @@ void VulkanApp::drawFrame() {
 }
 
 void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
-    auto command = renderer.getCurrentCommandBuffers();
+    auto command = renderer.getCommandBuffer(imageIndex);
+
+    vkResetCommandBuffer(command, 0);
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -283,7 +325,7 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
         vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getOpaquePipeline());
         vkCmdBindVertexBuffers(command, 0, 1, vertexBuffers, offsets);
         vkCmdBindIndexBuffer(command, bufferManager.getIndexBuffers().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getOpaquePipelineLayout(), 0, 1, &(descriptor.getDescriptorSets())[renderer.getCurrentFrame()], 0, nullptr);
+        vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getOpaquePipelineLayout(), 0, 1, &(descriptor.getDescriptorSets())[imageIndex], 0, nullptr);
 
         vkCmdDrawIndexedIndirect(
             command,
@@ -304,7 +346,7 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
             &offset
         );
         vkCmdBindIndexBuffer(command, bufferManager.getTransparentIndexBuffers().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
-        vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getTransparentPipelineLayout(), 0, 1, &descriptor.getDescriptorSets()[renderer.getCurrentFrame()], 0, nullptr);
+        vkCmdBindDescriptorSets(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getTransparentPipelineLayout(), 0, 1, &descriptor.getDescriptorSets()[imageIndex], 0, nullptr);
 
         vkCmdDrawIndexedIndirect(command,
             bufferManager.getTransparentAllocator().getIndirectBuffer().getBuffer(),
