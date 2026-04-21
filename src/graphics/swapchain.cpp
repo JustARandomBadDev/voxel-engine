@@ -8,6 +8,11 @@
 #include "graphics/instance.h"
 #include "graphics/renderer.h"
 
+namespace {
+constexpr VkPresentModeKHR kPreferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+constexpr VkPresentModeKHR kFallbackPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+}
+
 void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(p_device.getPhysicalDevice(), p_instance);
 
@@ -56,7 +61,7 @@ void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device
     createInfo.clipped = VK_TRUE;
 
     if (vkCreateSwapchainKHR(p_device.getDevice(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain!");
+        throw std::runtime_error("Swapchain::createSwapChain() -> failed to create swapchain");
     }
 
     vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &imageCount, nullptr);
@@ -126,7 +131,7 @@ VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAs
 
         VkImageView imageView;
         if (vkCreateImageView(p_device.getDevice(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image view!");
+            throw std::runtime_error("Swapchain::createImageView() -> failed to create swapchain image view");
         }
 
         return imageView;
@@ -168,12 +173,12 @@ VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(const std::vector<VkSurfac
 
 VkPresentModeKHR Swapchain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
     for (const auto& availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        if (availablePresentMode == kPreferredPresentMode) {
             return availablePresentMode;
         }
     }
 
-    return VK_PRESENT_MODE_FIFO_KHR;
+    return kFallbackPresentMode;
 }
 
 VkExtent2D Swapchain::chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {

@@ -3,8 +3,14 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 
 #include <glm/glm.hpp>
+
+enum class WindowCursorMode {
+    Captured,
+    Normal
+};
 
 struct GraphicsResourceConfig {
     std::filesystem::path terrainTexture;
@@ -22,8 +28,20 @@ struct GpuAllocatorConfig {
 
 struct VoxelEngineInitConfig {
     glm::vec3 cameraPos;
-    float fov = 0.0f;
+    uint32_t windowWidth = 1280;
+    uint32_t windowHeight = 720;
+    std::string windowTitle = "Voxel Sandbox";
+    WindowCursorMode cursorMode = WindowCursorMode::Captured;
+
+    float fov = 70.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 1000.0f;
+    float cameraSpeed = 10.0f;
+    float mouseSensitivity = 0.1f;
+
+    glm::vec4 clearColor = {0.08f, 0.09f, 0.10f, 1.0f};
     uint32_t framesInFlight = 2;
+    bool enableValidationLayers = true;
     GraphicsResourceConfig graphicsResources;
     GpuAllocatorConfig gpuAllocator;
 };

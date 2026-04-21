@@ -43,10 +43,10 @@ public:
     const Renderer&              getRenderer()              const { return renderer; }
 
     VulkanApp()
-    : camera({0, 0, 0}, 0, 0) {};
+    : camera({0, 0, 0}, 70.0f, 1.0f) {};
 
 private:
-    GLFWwindow* window;
+    GLFWwindow* window = nullptr;
 
     Instance instance;
     Device device;
@@ -65,12 +65,14 @@ private:
     int generated;
     uint32_t _last_opaque_indirect_count = 0;
     uint32_t _last_transparent_indirect_count = 0;
+    WindowCursorMode _cursor_mode = WindowCursorMode::Captured;
+    glm::vec4 _clear_color = {0.08f, 0.09f, 0.10f, 1.0f};
 
     float deltaTime = 0;
     float lastFrame = 0;
 
-    void initWindow();
-    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight);
+    void initWindow(const VoxelEngineInitConfig& config);
+    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight, bool p_enable_validation_layers);
     void recreateSwapchainResources();
 
     void computeShader(std::vector<VkSemaphore>& waitSemaphores, std::vector<VkPipelineStageFlags>& waitStages);

@@ -10,6 +10,13 @@
 #include "graphics/renderer.h"
 #include "graphics/swapchain.h"
 
+namespace {
+constexpr VkFormat kTerrainTextureFormat = VK_FORMAT_R8G8B8A8_SRGB;
+constexpr VkFilter kTerrainSamplerFilter = VK_FILTER_NEAREST;
+constexpr VkSamplerAddressMode kTerrainSamplerAddressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+constexpr VkSamplerMipmapMode kTerrainSamplerMipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+}
+
 void Texture::createTextureImage(
     const std::filesystem::path& texture_path,
     Renderer& p_renderer,
@@ -20,7 +27,7 @@ void Texture::createTextureImage(
     VkDeviceSize imageSize = texWidth * texHeight * 4;
 
     if (!pixels) {
-        throw std::runtime_error("failed to load texture image: " + texture_path.string());
+        throw std::runtime_error("Texture::createTextureImage() -> failed to load texture image: " + texture_path.string());
     }
 
     Buffer stagingBuffer;
@@ -33,17 +40,27 @@ void Texture::createTextureImage(
 
     stbi_image_free(pixels);
 
-    BufferManager::createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory, p_device);
+    BufferManager::createImage(
+        texWidth,
+        texHeight,
+        kTerrainTextureFormat,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        textureImage,
+        textureImageMemory,
+        p_device
+    );
 
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p_renderer, p_device);
+    transitionImageLayout(textureImage, kTerrainTextureFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p_renderer, p_device);
         copyBufferToImage(stagingBuffer.getBuffer(), textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), p_renderer, p_device);
-    transitionImageLayout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, p_renderer, p_device);
+    transitionImageLayout(textureImage, kTerrainTextureFormat, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, p_renderer, p_device);
 
     stagingBuffer.cleanup();
 }
 
 void Texture::createTextureImageView(Swapchain& p_swapchain, Device& p_device) {
-    textureImageView = p_swapchain.createImageView(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT, p_device);
+    textureImageView = p_swapchain.createImageView(textureImage, kTerrainTextureFormat, VK_IMAGE_ASPECT_COLOR_BIT, p_device);
 }
 
 void Texture::createTextureSampler(Device& p_device) {
@@ -52,30 +69,42 @@ void Texture::createTextureSampler(Device& p_device) {
 
         VkSamplerCreateInfo samplerInfo{};
         samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerInfo.magFilter = VK_FILTER_NEAREST;
-        samplerInfo.minFilter = VK_FILTER_NEAREST;
-        samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-        samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+        samplerInfo.magFilter = kTerrainSamplerFilter;
+        samplerInfo.minFilter = kTerrainSamplerFilter;
+        samplerInfo.addressModeU = kTerrainSamplerAddressMode;
+        samplerInfo.addressModeV = kTerrainSamplerAddressMode;
+        samplerInfo.addressModeW = kTerrainSamplerAddressMode;
         samplerInfo.anisotropyEnable = VK_FALSE;
         samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
         samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
         samplerInfo.unnormalizedCoordinates = VK_FALSE;
         samplerInfo.compareEnable = VK_FALSE;
         samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-        samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerInfo.mipmapMode = kTerrainSamplerMipmapMode;
 
         if (vkCreateSampler(p_device.getDevice(), &samplerInfo, nullptr, &textureSampler) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create texture sampler!");
+            throw std::runtime_error("Texture::createTextureSampler() -> failed to create texture sampler");
         }
 }
 
 void Texture::cleanup(Device& p_device) {
-    vkDestroySampler(p_device.getDevice(), textureSampler, nullptr);
-    vkDestroyImageView(p_device.getDevice(), textureImageView, nullptr);
+    if (textureSampler != VK_NULL_HANDLE) {
+        vkDestroySampler(p_device.getDevice(), textureSampler, nullptr);
+    }
+    if (textureImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(p_device.getDevice(), textureImageView, nullptr);
+    }
+    if (textureImage != VK_NULL_HANDLE) {
+        vkDestroyImage(p_device.getDevice(), textureImage, nullptr);
+    }
+    if (textureImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(p_device.getDevice(), textureImageMemory, nullptr);
+    }
 
-    vkDestroyImage(p_device.getDevice(), textureImage, nullptr);
-    vkFreeMemory(p_device.getDevice(), textureImageMemory, nullptr);
+    textureSampler = VK_NULL_HANDLE;
+    textureImageView = VK_NULL_HANDLE;
+    textureImage = VK_NULL_HANDLE;
+    textureImageMemory = VK_NULL_HANDLE;
 }
 
 void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, Renderer& p_renderer, Device& p_device) {

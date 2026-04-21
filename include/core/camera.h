@@ -6,7 +6,15 @@
 
 class Camera {
 public:
-    Camera(glm::vec3 position, float fov, float aspectRatio);
+    Camera(
+        glm::vec3 position,
+        float fov,
+        float aspectRatio,
+        float nearPlane = 0.1f,
+        float farPlane = 1000.0f,
+        float movementSpeed = 10.0f,
+        float mouseSensitivity = 0.1f
+    );
 
     void update(float deltaTime);
     int  processKeyboard(int key, int action);
@@ -33,6 +41,8 @@ private:
     float movementSpeed;
     float mouseSensitivity;
     float fov;
+    float nearPlane;
+    float farPlane;
 
     glm::mat4 viewMatrix;
     glm::mat4 projectionMatrix;

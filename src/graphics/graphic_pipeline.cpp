@@ -7,6 +7,12 @@
 #include "graphics/swapchain.h"
 #include "graphics/vertex.h"
 
+namespace {
+constexpr VkCullModeFlags kOpaqueCullMode = VK_CULL_MODE_BACK_BIT;
+constexpr VkFrontFace kOpaqueFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+constexpr VkCullModeFlags kTransparentCullMode = VK_CULL_MODE_NONE;
+}
+
 void GraphicPipeline::createRenderPass(Swapchain& p_swapchain, Device& p_device) {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = p_swapchain.getSwapChainImageFormat();
@@ -61,7 +67,7 @@ void GraphicPipeline::createRenderPass(Swapchain& p_swapchain, Device& p_device)
     renderPassInfo.pDependencies = &dependency;
 
     if (vkCreateRenderPass(p_device.getDevice(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create render pass!");
+        throw std::runtime_error("GraphicPipeline::createRenderPass() -> failed to create render pass");
     }
 }
 
@@ -87,7 +93,7 @@ void GraphicPipeline::createDescriptorSetLayout(Device& p_device) {
     layoutInfo.pBindings = bindings.data();
 
     if (vkCreateDescriptorSetLayout(p_device.getDevice(), &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor set layout!");
+        throw std::runtime_error("GraphicPipeline::createDescriptorSetLayout() -> failed to create descriptor set layout");
     }
 }
 
@@ -143,8 +149,8 @@ void GraphicPipeline::createGraphicsPipeline(
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.cullMode = kOpaqueCullMode;
+    rasterizer.frontFace = kOpaqueFrontFace;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     VkPipelineMultisampleStateCreateInfo multisampling{};
@@ -191,11 +197,11 @@ void GraphicPipeline::createGraphicsPipeline(
     pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
     if (vkCreatePipelineLayout(p_device.getDevice(), &pipelineLayoutInfo, nullptr, &opaquePipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
+        throw std::runtime_error("GraphicPipeline::createGraphicsPipeline() -> failed to create opaque pipeline layout");
     }
 
     if (vkCreatePipelineLayout(p_device.getDevice(), &pipelineLayoutInfo, nullptr, &transparentPipelineLayout) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create pipeline layout!");
+        throw std::runtime_error("GraphicPipeline::createGraphicsPipeline() -> failed to create transparent pipeline layout");
     }
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
@@ -216,7 +222,10 @@ void GraphicPipeline::createGraphicsPipeline(
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
     if (vkCreateGraphicsPipelines(p_device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &opaquePipeline) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create graphics pipeline!");
+        throw std::runtime_error(
+            "GraphicPipeline::createGraphicsPipeline() -> failed to create opaque graphics pipeline from shaders: "
+            + vertex_shader_path.string() + " and " + fragment_shader_path.string()
+        );
     }
 
     depthStencil.depthWriteEnable = VK_FALSE;
@@ -229,10 +238,13 @@ void GraphicPipeline::createGraphicsPipeline(
     colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
     colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
+    rasterizer.cullMode = kTransparentCullMode;
 
     if (vkCreateGraphicsPipelines(p_device.getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &transparentPipeline) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create graphics pipeline!");
+        throw std::runtime_error(
+            "GraphicPipeline::createGraphicsPipeline() -> failed to create transparent graphics pipeline from shaders: "
+            + vertex_shader_path.string() + " and " + fragment_shader_path.string()
+        );
     }
 
     vkDestroyShaderModule(p_device.getDevice(), fragShaderModule, nullptr);
@@ -261,7 +273,7 @@ VkShaderModule GraphicPipeline::createShaderModule(const std::vector<char>& code
 
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(p_device.getDevice(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create shader module!");
+        throw std::runtime_error("GraphicPipeline::createShaderModule() -> failed to create shader module");
     }
 
     return shaderModule;
@@ -271,7 +283,7 @@ std::vector<char> GraphicPipeline::readFile(const std::filesystem::path& filenam
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
     if (!file.is_open()) {
-        throw std::runtime_error("failed to open file: " + filename.string());
+        throw std::runtime_error("GraphicPipeline::readFile() -> failed to open shader file: " + filename.string());
     }
 
     size_t fileSize = (size_t) file.tellg();

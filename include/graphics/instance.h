@@ -7,7 +7,7 @@
 
 class Instance {
 public:
-    void createInstance();
+    void createInstance(bool p_enable_validation_layers);
     void setupDebugMessenger();
     void createSurface(GLFWwindow* window);
     void cleanup();
@@ -16,12 +16,13 @@ public:
     const VkSurfaceKHR& getSurface() const { return surface; }
 
 private:
-    VkInstance instance;
-    VkDebugUtilsMessengerEXT debugMessenger;
-    VkSurfaceKHR surface;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    bool _validation_layers_enabled = false;
 
     bool checkValidationLayerSupport();
-    std::vector<const char*> getRequiredExtensions();
+    std::vector<const char*> getRequiredExtensions() const;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };

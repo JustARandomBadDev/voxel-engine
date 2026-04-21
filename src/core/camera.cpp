@@ -4,9 +4,23 @@
 #include <iostream>
 #include <math.h>
 
-Camera::Camera(glm::vec3 position, float fov, float aspectRatio)
-    : position(position), yaw(-90.0f), pitch(0.0f), movementSpeed(50.0f), 
-      mouseSensitivity(0.1f), fov(fov) {
+Camera::Camera(
+    glm::vec3 initialPosition,
+    float initialFov,
+    float aspectRatio,
+    float initialNearPlane,
+    float initialFarPlane,
+    float initialMovementSpeed,
+    float initialMouseSensitivity
+)
+    : position(initialPosition),
+      yaw(-90.0f),
+      pitch(0.0f),
+      movementSpeed(initialMovementSpeed),
+      mouseSensitivity(initialMouseSensitivity),
+      fov(initialFov),
+      nearPlane(initialNearPlane),
+      farPlane(initialFarPlane) {
 
     worldUp = glm::vec3(0.0f, -1.0f, 0.0f);
     front = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -15,17 +29,17 @@ Camera::Camera(glm::vec3 position, float fov, float aspectRatio)
     axeY = 0;
     axeZ = 0;
 
-    projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, 0.1f, 1000.0f);
+    projectionMatrix = glm::perspective(glm::radians(initialFov), aspectRatio, initialNearPlane, initialFarPlane);
     updateViewMatrix();
 }
 
 void Camera::update(float deltaTime) {
     float velocity = movementSpeed * deltaTime;
 
-    glm::vec3 right = glm::normalize(glm::cross(front, worldUp));
+    glm::vec3 cameraRight = glm::normalize(glm::cross(front, worldUp));
     glm::vec3 forward = glm::normalize(glm::vec3(front.x, 0.0f, front.z));
 
-    glm::vec3 moveDirection = forward * axeZ + worldUp * axeY + right * axeX;
+    glm::vec3 moveDirection = forward * axeZ + worldUp * axeY + cameraRight * axeX;
 
     if (glm::length(moveDirection) > 0.0f)
         moveDirection = glm::normalize(moveDirection);
@@ -79,7 +93,7 @@ void Camera::updateViewMatrix() {
 }
 
 void Camera::updateProjection(float aspectRatio) {
-    projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, 0.1f, 1000.0f);
+    projectionMatrix = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
 }
 
 

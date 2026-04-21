@@ -42,23 +42,87 @@ void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     validateRequiredResourcePath(resources.meshingComputeShader, "graphicsResources.meshingComputeShader");
 }
 
+std::string getGlfwErrorMessage() {
+    const char* description = nullptr;
+    glfwGetError(&description);
+    if (description == nullptr) {
+        return "no GLFW error description available";
+    }
+
+    return description;
+}
+
+void validateInitConfig(const VoxelEngineInitConfig& config) {
+    if (config.windowWidth == 0 || config.windowHeight == 0) {
+        throw std::runtime_error(
+            "VulkanApp::init() -> invalid window size (width: "
+            + std::to_string(config.windowWidth) + ", height: " + std::to_string(config.windowHeight) + ")"
+        );
+    }
+
+    if (config.fov <= 0.0f || config.fov >= 180.0f) {
+        throw std::runtime_error(
+            "VulkanApp::init() -> invalid camera FOV (value: " + std::to_string(config.fov) + ")"
+        );
+    }
+
+    if (config.nearPlane <= 0.0f) {
+        throw std::runtime_error(
+            "VulkanApp::init() -> invalid near plane (value: " + std::to_string(config.nearPlane) + ")"
+        );
+    }
+
+    if (config.farPlane <= config.nearPlane) {
+        throw std::runtime_error(
+            "VulkanApp::init() -> invalid far plane (near: " + std::to_string(config.nearPlane)
+            + ", far: " + std::to_string(config.farPlane) + ")"
+        );
+    }
+
+    if (config.framesInFlight == 0) {
+        throw std::runtime_error("VulkanApp::init() -> framesInFlight must be greater than 0");
+    }
+}
+
 } // namespace
 
-void VulkanApp::initWindow() {
-    glfwInit();
+void VulkanApp::initWindow(const VoxelEngineInitConfig& config) {
+    if (glfwInit() != GLFW_TRUE) {
+        throw std::runtime_error("VulkanApp::initWindow() -> glfwInit() failed: " + getGlfwErrorMessage());
+    }
 
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-    window = glfwCreateWindow(1280, 720, "Minecraft-Vulkan", nullptr, nullptr);
+    window = glfwCreateWindow(
+        static_cast<int>(config.windowWidth),
+        static_cast<int>(config.windowHeight),
+        config.windowTitle.c_str(),
+        nullptr,
+        nullptr
+    );
+    if (window == nullptr) {
+        const std::string error = getGlfwErrorMessage();
+        glfwTerminate();
+        throw std::runtime_error(
+            "VulkanApp::initWindow() -> glfwCreateWindow() failed (width: "
+            + std::to_string(config.windowWidth) + ", height: " + std::to_string(config.windowHeight)
+            + ", title: " + config.windowTitle + "): " + error
+        );
+    }
+
     glfwSetWindowUserPointer(window, this);
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     glfwSetKeyCallback(window, key_callback);
     glfwSetCursorPosCallback(window, mouse_callback);
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    glfwSetInputMode(
+        window,
+        GLFW_CURSOR,
+        config.cursorMode == WindowCursorMode::Captured ? GLFW_CURSOR_DISABLED : GLFW_CURSOR_NORMAL
+    );
 }
 
-void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight) {
-    instance.createInstance();
+void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight, bool p_enable_validation_layers) {
+    instance.createInstance(p_enable_validation_layers);
     instance.setupDebugMessenger();
     instance.createSurface(window);
 
@@ -66,10 +130,6 @@ void VulkanApp::initVulkan(const GraphicsResourceConfig& resources, const GpuAll
     device.createLogicalDevice(instance);
 
     bufferManager.configure(device, renderer);
-
-    if (p_frames_in_flight == 0) {
-        throw std::runtime_error("VulkanApp::initVulkan() -> framesInFlight must be greater than 0");
-    }
 
     const uint32_t framesInFlight = p_frames_in_flight;
     swapchain.createSwapChain(window, instance, device, framesInFlight);
@@ -148,11 +208,22 @@ void VulkanApp::render() {
 
 void VulkanApp::init(const VoxelEngineInitConfig& config) {
     generated = 0;
+    validateInitConfig(config);
     validateGraphicsResources(config.graphicsResources);
-    camera = Camera(config.cameraPos, config.fov, 0);
+    _cursor_mode = config.cursorMode;
+    _clear_color = config.clearColor;
+    camera = Camera(
+        config.cameraPos,
+        config.fov,
+        1.0f,
+        config.nearPlane,
+        config.farPlane,
+        config.cameraSpeed,
+        config.mouseSensitivity
+    );
 
-    initWindow();
-    initVulkan(config.graphicsResources, config.gpuAllocator, config.framesInFlight);
+    initWindow(config);
+    initVulkan(config.graphicsResources, config.gpuAllocator, config.framesInFlight, config.enableValidationLayers);
     _last_opaque_indirect_count = bufferManager.getAllocator().getIndirectCount();
     _last_transparent_indirect_count = bufferManager.getTransparentAllocator().getIndirectCount();
 
@@ -177,7 +248,10 @@ void VulkanApp::cleanup() {
     device.cleanup();
     instance.cleanup();
 
-    glfwDestroyWindow(window);
+    if (window != nullptr) {
+        glfwDestroyWindow(window);
+        window = nullptr;
+    }
     glfwTerminate();
 }
 
@@ -297,7 +371,12 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
     renderPassInfo.renderArea.extent = swapchain.getSwapChainExtent();
 
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 1.0f, 1.0f}};
+    clearValues[0].color = {{
+        _clear_color.r,
+        _clear_color.g,
+        _clear_color.b,
+        _clear_color.a
+    }};
     clearValues[1].depthStencil = {1.0f, 0};
 
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
@@ -386,6 +465,8 @@ void VulkanApp::key_callback(GLFWwindow* window, int key, int scancode, int acti
 void VulkanApp::mouse_callback(GLFWwindow* window, double xpos, double ypos) {
     VulkanApp* app = static_cast<VulkanApp*>(glfwGetWindowUserPointer(window));
     if (app) {
+        if (app->_cursor_mode != WindowCursorMode::Captured) return;
+
         double width = app->swapchain.getSwapChainExtent().width;
         double height = app->swapchain.getSwapChainExtent().height;
 

@@ -15,7 +15,7 @@ void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
 
     if (deviceCount == 0) {
-        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        throw std::runtime_error("Device::pickPhysicalDevice() -> no Vulkan-capable physical device found");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -29,11 +29,15 @@ void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     }
 
     if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("failed to find a suitable GPU!");
+        throw std::runtime_error("Device::pickPhysicalDevice() -> failed to find a suitable physical device");
     }
 }
 
 void Device::createLogicalDevice(Instance& p_instance) {
+    if (physicalDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("Device::createLogicalDevice() -> physical device is not initialized");
+    }
+
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice, p_instance);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -50,7 +54,6 @@ void Device::createLogicalDevice(Instance& p_instance) {
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
     deviceFeatures.multiDrawIndirect = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
@@ -65,7 +68,7 @@ void Device::createLogicalDevice(Instance& p_instance) {
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
+        throw std::runtime_error("Device::createLogicalDevice() -> failed to create logical device");
     }
 
     vkGetDeviceQueue(device, indices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
@@ -118,7 +121,7 @@ bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Sw
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(pdevice, &supportedFeatures);
 
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy && supportedFeatures.multiDrawIndirect;
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.multiDrawIndirect;
 }
 
 QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const {
@@ -189,5 +192,5 @@ VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, Vk
         }
     }
 
-    throw std::runtime_error("failed to find supported format!");
+    throw std::runtime_error("Device::findSupportedFormat() -> failed to find a supported depth format");
 }

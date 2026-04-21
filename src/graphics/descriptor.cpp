@@ -27,7 +27,10 @@ void Descriptor::createDescriptorPool(Device& p_device, uint32_t p_image_count, 
     poolInfo.maxSets = p_image_count + p_frames_in_flight;
 
     if (vkCreateDescriptorPool(p_device.getDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create descriptor pool!");
+        throw std::runtime_error(
+            "Descriptor::createDescriptorPool() -> failed to create descriptor pool (imageCount: "
+            + std::to_string(p_image_count) + ", framesInFlight: " + std::to_string(p_frames_in_flight) + ")"
+        );
     }
 }
 
@@ -43,14 +46,14 @@ void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& 
     allocInfo.pSetLayouts = layouts.data();
     descriptorSets.resize(p_image_count);
     if (vkAllocateDescriptorSets(p_device.getDevice(), &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets!");
+        throw std::runtime_error("Descriptor::createDescriptorSets() -> failed to allocate graphics descriptor sets");
     }
 
     allocInfo.descriptorSetCount = p_frames_in_flight;
     allocInfo.pSetLayouts = computeLayouts.data();
     computeDescriptorSets.resize(p_frames_in_flight);
     if (vkAllocateDescriptorSets(p_device.getDevice(), &allocInfo, computeDescriptorSets.data()) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate descriptor sets for compute!");
+        throw std::runtime_error("Descriptor::createDescriptorSets() -> failed to allocate compute descriptor sets");
     }
 
     for (size_t i = 0; i < p_image_count; i++) {

@@ -23,10 +23,10 @@ public:
     const VkSampler& getTextureSampler() const { return textureSampler; }
 
 private:
-    VkImage textureImage;
-    VkDeviceMemory textureImageMemory;
-    VkImageView textureImageView;
-    VkSampler textureSampler;
+    VkImage textureImage = VK_NULL_HANDLE;
+    VkDeviceMemory textureImageMemory = VK_NULL_HANDLE;
+    VkImageView textureImageView = VK_NULL_HANDLE;
+    VkSampler textureSampler = VK_NULL_HANDLE;
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, Renderer& p_renderer, Device& p_device);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, Renderer& p_renderer, Device& p_device);

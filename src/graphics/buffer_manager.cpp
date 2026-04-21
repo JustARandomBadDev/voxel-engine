@@ -74,7 +74,9 @@ void BufferManager::applyCopies() {
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo);
+    if (vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::applyCopies() -> failed to begin copy command buffer recording");
+    }
 
     for (CopyInfo infos : _pending_copies) {
         VkBufferCopy copyRegion {};
@@ -86,14 +88,18 @@ void BufferManager::applyCopies() {
 
     _pending_copies.clear();
 
-    vkEndCommandBuffer(_renderer->getCopyCommandBuffer());
+    if (vkEndCommandBuffer(_renderer->getCopyCommandBuffer()) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::applyCopies() -> failed to end copy command buffer recording");
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &_renderer->getCopyCommandBuffer();
 
-    vkQueueSubmit(_device->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    if (vkQueueSubmit(_device->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::applyCopies() -> failed to submit copy command buffer");
+    }
     vkQueueWaitIdle(_device->getGraphicsQueue());
 
     _renderer->resetCopyCommandBuffer();
@@ -118,7 +124,10 @@ void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateImage(p_device.getDevice(), &imageInfo, nullptr, &image) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create image!");
+        throw std::runtime_error(
+            "BufferManager::createImage() -> failed to create image (width: "
+            + std::to_string(width) + ", height: " + std::to_string(height) + ")"
+        );
     }
 
     VkMemoryRequirements memRequirements;
@@ -130,10 +139,15 @@ void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format
     allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties, p_device);
 
     if (vkAllocateMemory(p_device.getDevice(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-        throw std::runtime_error("failed to allocate image memory!");
+        throw std::runtime_error(
+            "BufferManager::createImage() -> failed to allocate image memory (size: "
+            + std::to_string(memRequirements.size) + " bytes)"
+        );
     }
 
-    vkBindImageMemory(p_device.getDevice(), image, imageMemory, 0);
+    if (vkBindImageMemory(p_device.getDevice(), image, imageMemory, 0) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::createImage() -> failed to bind image memory");
+    }
 }
 
 void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size) {
@@ -162,26 +176,34 @@ VkCommandBuffer BufferManager::beginSingleTimeCommands(Renderer& p_renderer, Dev
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, &commandBuffer);
+    if (vkAllocateCommandBuffers(p_device.getDevice(), &allocInfo, &commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::beginSingleTimeCommands() -> failed to allocate single-use command buffer");
+    }
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::beginSingleTimeCommands() -> failed to begin single-use command buffer recording");
+    }
 
     return commandBuffer;
 }
 
 void BufferManager::endSingleTimeCommands(VkCommandBuffer commandBuffer, Renderer& p_renderer, Device& p_device) {
-    vkEndCommandBuffer(commandBuffer);
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::endSingleTimeCommands() -> failed to end single-use command buffer recording");
+    }
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
 
-    vkQueueSubmit(p_device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE);
+    if (vkQueueSubmit(p_device.getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        throw std::runtime_error("BufferManager::endSingleTimeCommands() -> failed to submit single-use command buffer");
+    }
     vkQueueWaitIdle(p_device.getGraphicsQueue());
 
     vkFreeCommandBuffers(p_device.getDevice(), p_renderer.getCommandPool(), 1, &commandBuffer);
@@ -197,7 +219,7 @@ uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
         }
     }
 
-    throw std::runtime_error("failed to find suitable memory type!");
+    throw std::runtime_error("BufferManager::findMemoryType() -> failed to find a suitable Vulkan memory type");
 }
 
 void BufferManager::cleanupBuffers() {
