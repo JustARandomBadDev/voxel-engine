@@ -1,5 +1,6 @@
 #include "graphics/allocator.h"
 
+#include <sstream>
 #include <string.h>
 
 #include "graphics/device.h"
@@ -13,10 +14,31 @@ Allocator::Allocator(int p_usage, uint32_t p_nbBlock, uint32_t p_blockSize, std:
 }
 
 void Allocator::alloc(const void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffset, uint32_t p_dstOffset) {
-    uint32_t size = p_nbBlock * _blockSize;
+    const VkDeviceSize size = static_cast<VkDeviceSize>(p_nbBlock) * _blockSize;
+    const VkDeviceSize dstOffsetBytes = static_cast<VkDeviceSize>(p_dstOffset) * _blockSize;
+    const VkDeviceSize stagingCapacity = _staging.value().get().getSize();
 
-    if (p_dstOffset + size > _size || p_srcOffset + size > _staging.value().get().getSize())
-        throw std::runtime_error("Allocator::alloc -> Buffer overflow GPU !");
+    if (dstOffsetBytes + size > _size) {
+        std::ostringstream oss;
+        oss << "Allocator::alloc() -> destination allocator overflow: "
+            << "requested=" << size
+            << " bytes, dstOffsetBytes=" << dstOffsetBytes
+            << ", allocatorCapacity=" << _size
+            << " bytes";
+        throw std::runtime_error(oss.str());
+    }
+
+    if (p_srcOffset + size > stagingCapacity) {
+        const VkDeviceSize remainingBytes = p_srcOffset <= stagingCapacity ? stagingCapacity - p_srcOffset : 0;
+        std::ostringstream oss;
+        oss << "Allocator::alloc() -> staging overflow: "
+            << "requested=" << size
+            << " bytes, srcOffset=" << p_srcOffset
+            << " bytes, stagingCapacity=" << stagingCapacity
+            << " bytes, remaining=" << remainingBytes
+            << " bytes";
+        throw std::runtime_error(oss.str());
+    }
 
     void* data;
     
@@ -41,19 +63,4 @@ void Allocator::extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset) 
 
 void Allocator::cleanup() {
     _buffer.cleanup();
-}
-
-Allocator& Allocator::operator=(const Allocator& other) {
-    this->_blockSize = other._blockSize;
-    this->_buffer = other._buffer;
-    this->_size = other._size;
-    this->_device = other._device;
-
-    if (other._staging.has_value()) {
-        this->_staging = std::make_optional(other._staging.value());
-    } else {
-        this->_staging.reset();
-    }
-
-    return *this;
 }

@@ -46,7 +46,7 @@ void VoxelEngine::removeChunk(glm::ivec3 pos) {
 void VoxelEngine::setVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos, Voxel voxel) {
     if (!checkLocalPos(local_voxel_pos)) return;
     
-    if (VOXEL_DATAS.size() - 1 < voxel.id - 1) return;
+    if (voxel.id <= 0 || static_cast<size_t>(voxel.id - 1) >= VOXEL_DATAS.size()) return;
     
     Chunk* chunk = _chunk_manager.getChunk(chunk_pos);
     if (!chunk) {

@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <vulkan/vulkan.h>
 #include <glm/glm.hpp>
 #include <unordered_map>
 
@@ -35,15 +36,17 @@ class AllocatorManager {
 public:
     void init(Device& p_device, const GpuAllocatorConfig& p_config);
     int  allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager);
-    void freeMesh(int pid);
+    void freeMesh(int pid, BufferManager& p_buffer_manager);
     void resetStagingOffset() { _stagingOffset = 0; };
 
     void cleanup();
 
     Buffer& getVertexBuffer() { return _vertexAllocator.getBuffer(); }
     const Buffer& getVertexBuffer() const { return _vertexAllocator.getBuffer(); }
+
     Buffer& getIndexBuffer() { return _indexAllocator.getBuffer(); }
     const Buffer& getIndexBuffer() const { return _indexAllocator.getBuffer(); }
+    
     Buffer& getIndirectBuffer() { return _indirectAllocator.getBuffer(); }
     const Buffer& getIndirectBuffer() const { return _indirectAllocator.getBuffer(); }
     
@@ -69,9 +72,10 @@ private:
     std::vector<AllocInfo> _freeList;
     std::vector<int> _freeId;
 
+    void ensureStagingCapacity(VkDeviceSize requestedBytes) const;
     int availableAlloc(uint32_t p_nbBlock);
     void newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, AllocInfo& p_infos, int p_id);
-    void freeIndirectBlock(uint32_t p_offset);
+    void freeIndirectBlock(uint32_t p_offset, BufferManager& p_buffer_manager);
 };
 
 #endif

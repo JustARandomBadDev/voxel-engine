@@ -20,8 +20,6 @@ public:
 
     void cleanup();
 
-    Allocator& operator=(const Allocator& other);
-
     Buffer& getBuffer() { return _buffer; }
     const Buffer& getBuffer() const { return _buffer; }
     uint32_t getBlockSize() const { return _blockSize; }

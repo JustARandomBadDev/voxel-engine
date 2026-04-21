@@ -15,14 +15,14 @@ void ChunkRenderStateCache::freeAllocations(ChunkRenderState& p_state, BufferMan
 
 void ChunkRenderStateCache::freeOpaqueAllocation(ChunkRenderState& p_state, BufferManager& p_buffer_manager) {
     if (p_state.opaqueAllocId != -1) {
-        p_buffer_manager.getAllocator().freeMesh(p_state.opaqueAllocId);
+        p_buffer_manager.getAllocator().freeMesh(p_state.opaqueAllocId, p_buffer_manager);
         p_state.opaqueAllocId = -1;
     }
 }
 
 void ChunkRenderStateCache::freeTransparentAllocation(ChunkRenderState& p_state, BufferManager& p_buffer_manager) {
     if (p_state.transparentAllocId != -1) {
-        p_buffer_manager.getTransparentAllocator().freeMesh(p_state.transparentAllocId);
+        p_buffer_manager.getTransparentAllocator().freeMesh(p_state.transparentAllocId, p_buffer_manager);
         p_state.transparentAllocId = -1;
     }
 }
