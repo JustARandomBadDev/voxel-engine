@@ -1,4 +1,4 @@
-#include "engine/chunk_render_sync.h"
+#include "graphics/chunk_render_sync.h"
 
 #include "engine/chunk_mesh_registry.h"
 #include "graphics/buffer_manager.h"

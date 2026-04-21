@@ -29,7 +29,7 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
     }
 }
 
-void Instance::createInstance(bool p_enable_validation_layers) {
+void Instance::createInstance(bool p_enable_validation_layers, const std::vector<std::string>& p_required_extensions) {
     _validation_layers_enabled = p_enable_validation_layers;
 
     if (_validation_layers_enabled && !checkValidationLayerSupport()) {
@@ -48,7 +48,7 @@ void Instance::createInstance(bool p_enable_validation_layers) {
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    auto extensions = getRequiredExtensions();
+    auto extensions = getRequiredExtensions(p_required_extensions);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -70,17 +70,17 @@ void Instance::createInstance(bool p_enable_validation_layers) {
     }
 }
 
-void Instance::createSurface(GLFWwindow* window) {
+void Instance::createSurface(const std::function<VkResult(VkInstance, VkSurfaceKHR&)>& p_create_surface) {
     if (instance == VK_NULL_HANDLE) {
-        throw std::runtime_error("Vulkan instance is null!");
+        throw std::runtime_error("Instance::createSurface() -> Vulkan instance is not initialized");
     }
 
-    if (window == nullptr) {
-        throw std::runtime_error("Instance::createSurface() -> GLFW window is null");
+    if (!p_create_surface) {
+        throw std::runtime_error("Instance::createSurface() -> surface creation callback is not set");
     }
 
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("Instance::createSurface() -> failed to create GLFW window surface");
+    if (p_create_surface(instance, surface) != VK_SUCCESS) {
+        throw std::runtime_error("Instance::createSurface() -> failed to create Vulkan surface via host callback");
     }
 }
 
@@ -96,16 +96,17 @@ void Instance::setupDebugMessenger() {
     
 }
 
-std::vector<const char*> Instance::getRequiredExtensions() const {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
-
-    if (glfwExtensions == nullptr || glfwExtensionCount == 0) {
-        throw std::runtime_error("Instance::getRequiredExtensions() -> GLFW did not provide required Vulkan instance extensions");
+std::vector<const char*> Instance::getRequiredExtensions(const std::vector<std::string>& p_required_extensions) const {
+    if (p_required_extensions.empty()) {
+        throw std::runtime_error("Instance::getRequiredExtensions() -> host did not provide required Vulkan instance extensions");
     }
 
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> extensions;
+    extensions.reserve(p_required_extensions.size() + (_validation_layers_enabled ? 1 : 0));
+
+    for (const std::string& extension : p_required_extensions) {
+        extensions.push_back(extension.c_str());
+    }
 
     if (_validation_layers_enabled) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

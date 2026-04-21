@@ -2,7 +2,6 @@
 #define VULKAN_SWAPCHAIN_H
 
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #include <vector>
 
 struct SwapChainSupportDetails {
@@ -18,8 +17,8 @@ class Renderer;
 
 class Swapchain {
 public:
-    void createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight);
-    void recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device);
+    void createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight);
+    void recreateSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device);
     void createImageViews(Device& p_device);
     void cleanup(Device& p_device);
 
@@ -50,7 +49,7 @@ private:
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities);
+    VkExtent2D chooseSwapExtent(VkExtent2D p_framebuffer_extent, const VkSurfaceCapabilitiesKHR& capabilities);
 
 };
 

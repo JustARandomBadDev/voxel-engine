@@ -7,49 +7,40 @@
 class Camera {
 public:
     Camera(
-        glm::vec3 position,
-        float fov,
-        float aspectRatio,
+        glm::vec3 position = {0.0f, 0.0f, 0.0f},
+        float fov = 70.0f,
+        float aspectRatio = 1.0f,
         float nearPlane = 0.1f,
-        float farPlane = 1000.0f,
-        float movementSpeed = 10.0f,
-        float mouseSensitivity = 0.1f
+        float farPlane = 1000.0f
     );
 
-    void update(float deltaTime);
-    int  processKeyboard(int key, int action);
-    void processMouse(float offsetX, float offsetY);
-    void updateViewMatrix();
+    void translate(glm::vec3 delta);
+    void setPosition(glm::vec3 position);
+    void rotate(float yawOffset, float pitchOffset);
+    void setRotation(float yaw, float pitch);
     void updateProjection(float aspectRatio);
 
     glm::mat4 getViewMatrix() const { return viewMatrix; }
     glm::mat4 getProjectionMatrix() const { return projectionMatrix; }
     glm::vec3 getPosition() const { return position; }
     glm::vec3 getDirection() const { return front; }
-
-    void debug();
+    glm::vec3 getWorldUp() const { return worldUp; }
 
 private:
+    void updateViewMatrix();
+
     glm::vec3 position;
     glm::vec3 front;
-    glm::vec3 up;
-    glm::vec3 right;
     glm::vec3 worldUp;
 
     float yaw;
     float pitch;
-    float movementSpeed;
-    float mouseSensitivity;
     float fov;
     float nearPlane;
     float farPlane;
 
     glm::mat4 viewMatrix;
     glm::mat4 projectionMatrix;
-
-    float axeX;
-    float axeY;
-    float axeZ;
 };
 
 #endif

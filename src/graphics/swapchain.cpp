@@ -13,12 +13,12 @@ constexpr VkPresentModeKHR kPreferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 constexpr VkPresentModeKHR kFallbackPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 }
 
-void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
+void Swapchain::createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(p_device.getPhysicalDevice(), p_instance);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(window, swapChainSupport.capabilities);
+    VkExtent2D extent = chooseSwapExtent(p_framebuffer_extent, swapChainSupport.capabilities);
 
     uint32_t requestedImageCount = std::max(
         p_frames_in_flight,
@@ -72,20 +72,13 @@ void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device
     swapChainExtent = extent;
 }
 
-void Swapchain::recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device) {
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    while (width == 0 || height == 0) {
-        glfwGetFramebufferSize(window, &width, &height);
-        glfwWaitEvents();
-    }
-
+void Swapchain::recreateSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device) {
     vkDeviceWaitIdle(p_device.getDevice());
 
     cleanup(p_device);
     p_device.cleanupDepthResources();
 
-    createSwapChain(window, p_instance, p_device, p_renderer.getFramesInFlight());
+    createSwapChain(p_framebuffer_extent, p_instance, p_device, p_renderer.getFramesInFlight());
     createImageViews(p_device);
     p_device.createDepthResources(*this);
     p_renderer.createFramebuffers(p_graphic_pipeline, *this, p_device);
@@ -181,17 +174,11 @@ VkPresentModeKHR Swapchain::chooseSwapPresentMode(const std::vector<VkPresentMod
     return kFallbackPresentMode;
 }
 
-VkExtent2D Swapchain::chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D Swapchain::chooseSwapExtent(VkExtent2D p_framebuffer_extent, const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
-        VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
-        };
+        VkExtent2D actualExtent = p_framebuffer_extent;
 
         actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);

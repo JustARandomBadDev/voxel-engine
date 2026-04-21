@@ -3,20 +3,23 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <string>
+#include <vector>
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
 
-enum class WindowCursorMode {
-    Captured,
-    Normal
+struct VulkanHostConfig {
+    std::vector<std::string> requiredInstanceExtensions;
+    std::function<VkResult(VkInstance, VkSurfaceKHR&)> createSurface;
+    std::function<VkExtent2D()> getFramebufferExtent;
 };
 
 struct GraphicsResourceConfig {
     std::filesystem::path terrainTexture;
     std::filesystem::path voxelVertexShader;
     std::filesystem::path voxelFragmentShader;
-    std::filesystem::path meshingComputeShader;
 };
 
 struct GpuAllocatorConfig {
@@ -27,18 +30,7 @@ struct GpuAllocatorConfig {
 };
 
 struct VoxelEngineInitConfig {
-    glm::vec3 cameraPos;
-    uint32_t windowWidth = 1280;
-    uint32_t windowHeight = 720;
-    std::string windowTitle = "Voxel Sandbox";
-    WindowCursorMode cursorMode = WindowCursorMode::Captured;
-
-    float fov = 70.0f;
-    float nearPlane = 0.1f;
-    float farPlane = 1000.0f;
-    float cameraSpeed = 10.0f;
-    float mouseSensitivity = 0.1f;
-
+    VulkanHostConfig vulkanHost;
     glm::vec4 clearColor = {0.f, 0.f, 1.f, 1.0f};
     uint32_t framesInFlight = 2;
     bool enableValidationLayers = true;

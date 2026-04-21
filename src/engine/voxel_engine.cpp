@@ -5,9 +5,9 @@
 #include "core/config.h"
 #include "engine/chunk_mesh_registry.h"
 #include "engine/chunk_mesher.h"
-#include "engine/chunk_render_sync.h"
 #include "engine/voxel_data.h"
 #include "graphics/app.h"
+#include "graphics/chunk_render_sync.h"
 #include "world/chunk_manager.h"
 
 namespace {
@@ -67,27 +67,27 @@ void VoxelEngine::init(const VoxelEngineInitConfig& config) {
     _impl->app.init(config);
 }
 
-void VoxelEngine::update() {
+void VoxelEngine::update(const Camera& camera) {
     _impl->chunk_mesher.updateAll(_impl->chunk_manager, _impl->chunk_mesh_registry);
     _impl->chunk_render_sync.syncAll(
         _impl->chunk_manager,
         _impl->chunk_mesh_registry,
         _impl->app.getChunkRenderStateCache(),
-        _impl->app.getCamera()->getPosition(),
+        camera.getPosition(),
         _impl->app.getBufferManager()
     );
 }
 
-void VoxelEngine::render() {
-    _impl->app.render();
+void VoxelEngine::render(const Camera& camera) {
+    _impl->app.render(camera);
 }
 
 void VoxelEngine::shutdown() {
     _impl->app.cleanup();
 }
 
-bool VoxelEngine::isRun() const {
-    return _impl->app.isRun();
+float VoxelEngine::getAspectRatio() const {
+    return _impl->app.getAspectRatio();
 }
 
 void VoxelEngine::createChunk(glm::ivec3 pos) {

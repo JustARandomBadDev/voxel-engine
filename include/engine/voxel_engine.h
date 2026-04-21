@@ -5,7 +5,7 @@
 
 #include <glm/glm.hpp>
 
-#include "core/config.h"
+#include "core/camera.h"
 #include "engine/voxel_engine_config.h"
 #include "world/voxel.h"
 
@@ -20,10 +20,10 @@ public:
     VoxelEngine& operator=(VoxelEngine&&) noexcept;
 
     void init(const VoxelEngineInitConfig& config);
-    void update();
-    void render();
+    void update(const Camera& camera);
+    void render(const Camera& camera);
     void shutdown();
-    bool isRun() const;
+    float getAspectRatio() const;
     void createChunk(glm::ivec3 pos);
     void removeChunk(glm::ivec3 pos);
     void setVoxel(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos, Voxel voxel);

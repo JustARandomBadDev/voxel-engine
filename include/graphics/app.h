@@ -2,7 +2,6 @@
 #define VULKAN_APP_HPP
 
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 
 #include "core/camera.h"
 #include "engine/voxel_engine_config.h"
@@ -20,33 +19,20 @@
 class VulkanApp {
 public:
     void init(const VoxelEngineInitConfig& config);
-    void render();
-    void drawFrame();
+    void render(const Camera& camera);
+    void drawFrame(const Camera& camera);
     void recordCommandBuffer(uint32_t imageIndex);
     void cleanup();
 
-    bool isRun() const { return !glfwWindowShouldClose(window); };
-
-    static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
-
-    GLFWwindow*                  getWindow()                      { return window; }
-    const GLFWwindow*            getWindow()                const { return window; }
-    float                        getDeltaTime()             const { return deltaTime; }
-    Camera*                      getCamera()                      { return &camera; }
-    const Camera*                getCamera()                const { return &camera; }
     BufferManager&               getBufferManager()               { return bufferManager; }
     const BufferManager&         getBufferManager()         const { return bufferManager; }
     ChunkRenderStateCache&       getChunkRenderStateCache()       { return chunkRenderStateCache; }
     const ChunkRenderStateCache& getChunkRenderStateCache() const { return chunkRenderStateCache; }
     Renderer&                    getRenderer()                    { return renderer; }
     const Renderer&              getRenderer()              const { return renderer; }
-
-    VulkanApp()
-    : camera({0, 0, 0}, 70.0f, 1.0f) {};
+    float                        getAspectRatio()           const;
 
 private:
-    GLFWwindow* window = nullptr;
-
     Instance instance;
     Device device;
     BufferManager bufferManager;
@@ -57,25 +43,16 @@ private:
     Descriptor descriptor;
     GraphicPipeline graphicPipeline;
 
-    Camera camera;
-
-    bool framebufferResized = false;
     uint32_t _last_opaque_indirect_count = 0;
     uint32_t _last_transparent_indirect_count = 0;
-    WindowCursorMode _cursor_mode = WindowCursorMode::Captured;
-    glm::vec4 _clear_color = {0.08f, 0.09f, 0.10f, 1.0f};
+    glm::vec4 _clear_color = {0.f, 0.f, 1.f, 1.0f};
+    VulkanHostConfig _host_config;
+    bool _swapchain_needs_recreate = false;
 
-    float deltaTime = 0;
-    float lastFrame = 0;
-
-    void initWindow(const VoxelEngineInitConfig& config);
     void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight, bool p_enable_validation_layers);
-    void recreateSwapchainResources();
-
-    static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-    static void mouse_callback(GLFWwindow* window, double xpos, double ypos);
-
-    void updateDeltaTime();
+    bool recreateSwapchainResources();
+    VkExtent2D getFramebufferExtent() const;
+    bool syncSwapchainToHostExtent();
 };
 
 #endif // VULKAN_APP_HPP

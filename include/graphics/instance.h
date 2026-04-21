@@ -1,15 +1,16 @@
 #ifndef VULKAN_INSTANCE_H
 #define VULKAN_INSTANCE_H
 
+#include <functional>
+#include <string>
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #include <vector>
 
 class Instance {
 public:
-    void createInstance(bool p_enable_validation_layers);
+    void createInstance(bool p_enable_validation_layers, const std::vector<std::string>& p_required_extensions);
     void setupDebugMessenger();
-    void createSurface(GLFWwindow* window);
+    void createSurface(const std::function<VkResult(VkInstance, VkSurfaceKHR&)>& p_create_surface);
     void cleanup();
 
     const VkInstance& getInstance() const { return instance; }
@@ -22,7 +23,7 @@ private:
     bool _validation_layers_enabled = false;
 
     bool checkValidationLayerSupport();
-    std::vector<const char*> getRequiredExtensions() const;
+    std::vector<const char*> getRequiredExtensions(const std::vector<std::string>& p_required_extensions) const;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 };
