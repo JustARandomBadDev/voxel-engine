@@ -25,10 +25,6 @@ bool shouldResortTransparentMesh(
 }
 } // namespace
 
-std::string ChunkRenderStateCache::getKey(glm::ivec3 p_chunk_pos) {
-    return std::to_string(p_chunk_pos.x) + "," + std::to_string(p_chunk_pos.y) + "," + std::to_string(p_chunk_pos.z);
-}
-
 void ChunkRenderStateCache::freeAllocations(ChunkRenderState& p_state, BufferManager& p_buffer_manager) {
     freeOpaqueAllocation(p_state, p_buffer_manager);
     freeTransparentAllocation(p_state, p_buffer_manager);
@@ -59,7 +55,7 @@ void ChunkRenderStateCache::upload(
     glm::vec3 p_camera_pos,
     BufferManager& p_buffer_manager
 ) {
-    ChunkRenderState& state = _states[getKey(p_chunk_pos)];
+    ChunkRenderState& state = _states[makeChunkKey(p_chunk_pos)];
 
     if (!p_opaque_mesh.isEmpty()) {
         if (p_chunk_is_dirty) {
@@ -93,7 +89,7 @@ void ChunkRenderStateCache::upload(
 }
 
 void ChunkRenderStateCache::remove(glm::ivec3 p_chunk_pos, BufferManager& p_buffer_manager) {
-    auto it = _states.find(getKey(p_chunk_pos));
+    auto it = _states.find(makeChunkKey(p_chunk_pos));
     if (it == _states.end()) return;
 
     freeAllocations(it->second, p_buffer_manager);
@@ -101,8 +97,8 @@ void ChunkRenderStateCache::remove(glm::ivec3 p_chunk_pos, BufferManager& p_buff
 }
 
 void ChunkRenderStateCache::cleanup(BufferManager& p_buffer_manager) {
-    for (auto& [key, state] : _states) {
-        freeAllocations(state, p_buffer_manager);
+    for (auto& state_entry : _states) {
+        freeAllocations(state_entry.second, p_buffer_manager);
     }
 
     _states.clear();

@@ -1,11 +1,11 @@
 #ifndef CHUNK_MESH_REGISTRY_H
 #define CHUNK_MESH_REGISTRY_H
 
-#include <string>
 #include <unordered_map>
 
 #include <glm/glm.hpp>
 
+#include "core/chunk_key.h"
 #include "engine/mesh_builder.h"
 
 class ChunkMeshRegistry {
@@ -19,9 +19,7 @@ public:
     void clear();
 
 private:
-    std::unordered_map<std::string, MeshBuilder> _meshes;
-
-    static std::string getKey(glm::ivec3 p_chunk_pos);
+    std::unordered_map<ChunkKey, MeshBuilder, ChunkKeyHash> _meshes;
 };
 
 #endif
