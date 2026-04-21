@@ -1,18 +1,30 @@
 #include "graphics/buffer_manager.h"
 
+#include <sstream>
+#include <stdexcept>
 #include <string.h>
 
 #include "graphics/renderer.h"
 #include "graphics/device.h"
 
-std::vector<CopyInfo> BufferManager::pendingCopy;
+void BufferManager::ensureConfigured(const char* p_caller) const {
+    if (_configured && _device != nullptr && _renderer != nullptr) return;
+
+    std::ostringstream oss;
+    oss << "BufferManager::" << p_caller
+        << " -> BufferManager must be configured with a Device and Renderer before use";
+    throw std::runtime_error(oss.str());
+}
 
 void BufferManager::configure(Device& p_device, Renderer& p_renderer) {
     _device = &p_device;
     _renderer = &p_renderer;
+    _configured = true;
 }
 
 void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_config) {
+    ensureConfigured("createBuffers()");
+
     _opaque_allocator.init(*_device, p_gpu_allocator_config);
     _transparent_allocator.init(*_device, p_gpu_allocator_config);
 
@@ -36,6 +48,8 @@ void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_conf
 }
 
 void BufferManager::createUniformBuffers(uint32_t p_frames_in_flight) {
+    ensureConfigured("createUniformBuffers()");
+
     uniformBuffers.resize(p_frames_in_flight);
 
     for (size_t i = 0; i < p_frames_in_flight; i++) {
@@ -48,7 +62,9 @@ void BufferManager::updateUniformBuffer(uint32_t p_current_frame, glm::vec3 camP
 }
 
 void BufferManager::applyCopies() {
-    if (pendingCopy.size() <= 0) return;
+    if (_pending_copies.empty()) return;
+
+    ensureConfigured("applyCopies()");
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -56,7 +72,7 @@ void BufferManager::applyCopies() {
 
     vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo);
 
-    for (CopyInfo infos : pendingCopy) {
+    for (CopyInfo infos : _pending_copies) {
         VkBufferCopy copyRegion {};
         copyRegion.size = infos.size;
         copyRegion.srcOffset = infos.srcOffset;
@@ -64,7 +80,7 @@ void BufferManager::applyCopies() {
         vkCmdCopyBuffer(_renderer->getCopyCommandBuffer(), infos.srcBuffer, infos.dstBuffer, 1, &copyRegion);
     }
 
-    pendingCopy.clear();
+    _pending_copies.clear();
 
     vkEndCommandBuffer(_renderer->getCopyCommandBuffer());
 
@@ -125,7 +141,7 @@ void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSiz
         throw std::runtime_error("BufferManager::copyBuffer() -> GPU buffer overflow !");
     }
     
-    pendingCopy.push_back({
+    _pending_copies.push_back({
         srcBuffer.getBuffer(),
         dstBuffer.getBuffer(),
         size,
@@ -181,6 +197,7 @@ uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
 }
 
 void BufferManager::cleanupBuffers() {
+    _pending_copies.clear();
     _opaque_allocator.cleanup();
     _transparent_allocator.cleanup();
     voxelBuffer.cleanup();

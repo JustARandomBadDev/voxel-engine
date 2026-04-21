@@ -33,8 +33,8 @@ public:
 
     void applyCopies();
 
-    static void copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size);
-    static void copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset);
+    void copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size);
+    void copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset);
     static VkCommandBuffer beginSingleTimeCommands(Renderer& p_renderer, Device& p_device);
     static void endSingleTimeCommands(VkCommandBuffer commandBuffer, Renderer& p_renderer, Device& p_device);
 
@@ -77,8 +77,10 @@ private:
 
     Device* _device = nullptr;
     Renderer* _renderer = nullptr;
-    
-    static std::vector<CopyInfo> pendingCopy;
+    bool _configured = false;
+    std::vector<CopyInfo> _pending_copies;
+
+    void ensureConfigured(const char* p_caller) const;
 
 };
 

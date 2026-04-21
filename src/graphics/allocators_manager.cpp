@@ -147,7 +147,7 @@ int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer
             throw std::runtime_error(oss.str());
         }
 
-        p_allocator.alloc(p_data, p_blocks, p_stagingOffset, p_dest_offset);
+        p_allocator.alloc(p_data, p_blocks, p_stagingOffset, p_dest_offset, p_buffer_manager);
         p_stagingOffset += size;
     };
 
@@ -248,7 +248,7 @@ void AllocatorManager::freeIndirectBlock(uint32_t p_offset, BufferManager& p_buf
         throw std::runtime_error(oss.str());
     }
 
-    _indirectAllocator.alloc(&indirectCommand, 1, _stagingOffset, p_offset);
+    _indirectAllocator.alloc(&indirectCommand, 1, _stagingOffset, p_offset, p_buffer_manager);
     _stagingOffset += size;
 }
 

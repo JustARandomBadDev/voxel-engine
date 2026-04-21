@@ -13,7 +13,11 @@ Allocator::Allocator(int p_usage, uint32_t p_nbBlock, uint32_t p_blockSize, std:
     _device = &p_device;
 }
 
-void Allocator::alloc(const void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffset, uint32_t p_dstOffset) {
+void Allocator::alloc(const void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffset, uint32_t p_dstOffset, BufferManager& p_buffer_manager) {
+    if (!_staging.has_value() || _device == nullptr) {
+        throw std::runtime_error("Allocator::alloc() -> allocator not initialized");
+    }
+
     const VkDeviceSize size = static_cast<VkDeviceSize>(p_nbBlock) * _blockSize;
     const VkDeviceSize dstOffsetBytes = static_cast<VkDeviceSize>(p_dstOffset) * _blockSize;
     const VkDeviceSize stagingCapacity = _staging.value().get().getSize();
@@ -46,14 +50,18 @@ void Allocator::alloc(const void* p_data, uint32_t p_nbBlock, uint32_t p_srcOffs
     memcpy(data, p_data, size);
     vkUnmapMemory(_device->getDevice(), _staging.value().get().getBufferMemory());
 
-    BufferManager::copyBuffer(_staging.value().get(), _buffer, size, p_srcOffset, p_dstOffset * _blockSize);
+    p_buffer_manager.copyBuffer(_staging.value().get(), _buffer, size, p_srcOffset, p_dstOffset * _blockSize);
 }
 
 // Fonctionne plus (copyBuffer ne se fait plus directement, faut faire un applyCopies)
-void Allocator::extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset) {
+void Allocator::extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset, BufferManager& p_buffer_manager) {
+    if (!_staging.has_value() || _device == nullptr) {
+        throw std::runtime_error("Allocator::extractData() -> allocator not initialized");
+    }
+
     uint32_t size = p_nbBlock * _blockSize;
 
-    BufferManager::copyBuffer(_buffer, _staging.value().get(), size, p_offset * _blockSize, 0);
+    p_buffer_manager.copyBuffer(_buffer, _staging.value().get(), size, p_offset * _blockSize, 0);
 
     void* data;
     vkMapMemory(_device->getDevice(), _staging.value().get().getBufferMemory(), 0, size, 0, &data);
