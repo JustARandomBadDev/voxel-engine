@@ -53,6 +53,8 @@ void GraphicsRuntimeLifecycle::createSwapchainRenderTargets() {
     _swapchain.createFramebuffers(_graphic_pipeline, _device);
 }
 
+// Frame resources depend on swapchain image count and frames-in-flight,
+// including per-image uniform buffers, descriptors, and command-buffer state.
 void GraphicsRuntimeLifecycle::createFrameResources(uint32_t p_frames_in_flight) {
     _buffer_manager.createUniformBuffers(_swapchain.getImageCount());
 
@@ -69,6 +71,8 @@ void GraphicsRuntimeLifecycle::createFrameResources(uint32_t p_frames_in_flight)
     _renderer.createSyncObjects(_device, p_frames_in_flight, _swapchain.getImageCount());
 }
 
+// Recreating frame resources invalidates previously recorded command buffers because
+// descriptor-backed frame state and command buffers are rebuilt for the new swapchain state.
 void GraphicsRuntimeLifecycle::recreateFrameResources() {
     _buffer_manager.cleanupUniformBuffer();
     _descriptor.cleanup(_device);
@@ -76,6 +80,8 @@ void GraphicsRuntimeLifecycle::recreateFrameResources() {
     _renderer.invalidateAllCommandBuffers();
 }
 
+// Destroys only resources tied to the current swapchain images/format.
+// Persistent resources such as mesh buffers and chunk render state are intentionally left intact.
 void GraphicsRuntimeLifecycle::cleanupSwapchainDependentResources() {
     _swapchain.cleanupFramebuffers(_device);
     _device.cleanupDepthResources();
@@ -120,14 +126,14 @@ void GraphicsRuntimeLifecycle::initialize(
     createFrameResources(p_frames_in_flight);
 }
 
+// Swapchain recreation fully replaces swapchain-dependent resources after idling the device.
+// Persistent graphics state is preserved across the recreate.
 void GraphicsRuntimeLifecycle::recreateSwapchain(VkExtent2D p_framebuffer_extent) {
     vkDeviceWaitIdle(_device.getDevice());
 
-    // 1. Destroy resources that are tied to the current swapchain images/format.
     cleanupSwapchainDependentResources();
     _swapchain.cleanup(_device);
 
-    // 2. Rebuild swapchain storage and its dependent render targets in a fixed order.
     createSwapchainResources(p_framebuffer_extent, _frames_in_flight);
     createPipelineResources();
     createSwapchainRenderTargets();

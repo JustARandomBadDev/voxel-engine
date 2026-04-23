@@ -25,6 +25,7 @@ void BufferManager::ensureValidManagedBufferId(uint32_t p_buffer_id, const char*
     throw std::runtime_error(oss.str());
 }
 
+// BufferManager borrows Device and Renderer for later buffer creation and upload submission, and must be configured before use.
 void BufferManager::configure(Device& p_device, Renderer& p_renderer) {
     _device = &p_device;
     _renderer = &p_renderer;
@@ -52,6 +53,7 @@ const Buffer& BufferManager::getManagedBuffer(uint32_t p_buffer_id) const {
     return _managed_buffers[p_buffer_id];
 }
 
+// Resets allocator-backed storage, staging state, and pending uploads, then recreates persistent opaque/transparent mesh buffers.
 void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_config) {
     ensureConfigured("createBuffers()");
 
@@ -98,6 +100,7 @@ void BufferManager::updateUniformBuffer(uint32_t p_current_frame, glm::vec3 camP
     uniformBuffers.at(p_current_frame).updateUniformBuffer(camPos, matrix, sunPos, moonPos);
 }
 
+// Uploads are deferred and copy source bytes immediately so caller-owned mesh memory can be released or changed afterward.
 void BufferManager::enqueueUpload(uint32_t p_dst_buffer_id, VkDeviceSize p_dst_offset, const void* p_data, VkDeviceSize p_size) {
     ensureConfigured("enqueueUpload()");
     ensureValidManagedBufferId(p_dst_buffer_id, "enqueueUpload()");
@@ -137,6 +140,7 @@ void BufferManager::enqueueUpload(uint32_t p_dst_buffer_id, VkDeviceSize p_dst_o
     _pending_uploads.push_back(std::move(upload));
 }
 
+// Uploads are batched into the shared staging buffer until it fills; any remaining uploads stay queued for a later submit pass.
 void BufferManager::applyCopies() {
     if (_pending_uploads.empty()) return;
 
@@ -259,6 +263,7 @@ void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format
     }
 }
 
+// These helpers allocate, submit, wait, and free one-shot command buffers from the renderer command pool for transient setup work.
 VkCommandBuffer BufferManager::beginSingleTimeCommands(Renderer& p_renderer, Device& p_device) {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -313,6 +318,7 @@ uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
     throw std::runtime_error("BufferManager::findMemoryType() -> failed to find a suitable Vulkan memory type");
 }
 
+// Releases allocator-managed mesh storage, staging state, and pending uploads, but leaves per-frame uniform buffers untouched.
 void BufferManager::cleanupBuffers() {
     _pending_uploads.clear();
     _opaque_allocator.cleanup();

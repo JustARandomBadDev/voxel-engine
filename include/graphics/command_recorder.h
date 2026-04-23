@@ -12,6 +12,8 @@ class GraphicPipeline;
 class Renderer;
 class Swapchain;
 
+// Records one frame command buffer from already-created swapchain/frame resources
+// and the current allocator-backed draw data.
 class CommandRecorder {
 public:
     CommandRecorder(

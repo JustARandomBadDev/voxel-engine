@@ -70,6 +70,7 @@ void Instance::createInstance(bool p_enable_validation_layers, const std::vector
     }
 }
 
+// The host callback only creates the surface; the resulting handle is then owned and destroyed by Instance.
 void Instance::createSurface(const std::function<VkResult(VkInstance, VkSurfaceKHR&)>& p_create_surface) {
     if (instance == VK_NULL_HANDLE) {
         throw std::runtime_error("Instance::createSurface() -> Vulkan instance is not initialized");
@@ -154,6 +155,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Instance::debugCallback(VkDebugUtilsMessageSeveri
     return VK_FALSE;
 }
 
+// Instance-owned child handles must be destroyed before tearing down the Vulkan instance itself.
 void Instance::cleanup() {
     if (_validation_layers_enabled && debugMessenger != VK_NULL_HANDLE) {
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);

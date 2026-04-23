@@ -15,6 +15,7 @@ class GraphicPipeline;
 class Instance;
 class Renderer;
 
+// Owns swapchain storage, image views, and framebuffers for the current swapchain instance.
 class Swapchain {
 public:
     void createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight);

@@ -17,6 +17,8 @@ constexpr VkSamplerAddressMode kTerrainSamplerAddressMode = VK_SAMPLER_ADDRESS_M
 constexpr VkSamplerMipmapMode kTerrainSamplerMipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
 }
 
+// Texture data is uploaded through a staging buffer and transient copy commands,
+// producing a persistent device-local image.
 void Texture::createTextureImage(
     const std::filesystem::path& texture_path,
     Renderer& p_renderer,
@@ -59,10 +61,12 @@ void Texture::createTextureImage(
     stagingBuffer.cleanup();
 }
 
+// This reuses Swapchain::createImageView only as a generic helper; the texture view itself is persistent and not swapchain-dependent.
 void Texture::createTextureImageView(Swapchain& p_swapchain, Device& p_device) {
     textureImageView = p_swapchain.createImageView(textureImage, kTerrainTextureFormat, VK_IMAGE_ASPECT_COLOR_BIT, p_device);
 }
 
+// One sampler is created for the persistent terrain texture and reused by graphics descriptor sets.
 void Texture::createTextureSampler(Device& p_device) {
         VkPhysicalDeviceProperties properties{};
         vkGetPhysicalDeviceProperties(p_device.getPhysicalDevice(), &properties);
@@ -87,6 +91,7 @@ void Texture::createTextureSampler(Device& p_device) {
         }
 }
 
+// Texture-owned handles are destroyed in dependency order: sampler/view before image and memory.
 void Texture::cleanup(Device& p_device) {
     if (textureSampler != VK_NULL_HANDLE) {
         vkDestroySampler(p_device.getDevice(), textureSampler, nullptr);
@@ -107,6 +112,8 @@ void Texture::cleanup(Device& p_device) {
     textureImageMemory = VK_NULL_HANDLE;
 }
 
+// This helper is intentionally limited to the current upload path:
+// undefined -> transfer destination -> shader read-only.
 void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, Renderer& p_renderer, Device& p_device) {
     VkCommandBuffer commandBuffer = BufferManager::beginSingleTimeCommands(p_renderer, p_device);
 
@@ -154,6 +161,7 @@ void Texture::transitionImageLayout(VkImage image, VkFormat format, VkImageLayou
     BufferManager::endSingleTimeCommands(commandBuffer, p_renderer, p_device);
 }
 
+// The copy uses the transient upload command path and assumes the image is already in transfer-destination layout.
 void Texture::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, Renderer& p_renderer, Device& p_device) {
     VkCommandBuffer commandBuffer = BufferManager::beginSingleTimeCommands(p_renderer, p_device);
 

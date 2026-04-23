@@ -39,6 +39,7 @@ DrawIndirectCommand makeZeroIndirectCommand() {
 
 } // namespace
 
+// Allocator capacity is configured in blocks and reset fully before creating the first page.
 void AllocatorManager::init(BufferManager& p_buffer_manager, const GpuAllocatorConfig& p_config) {
     if (p_config.meshDataBlockCapacityPerAllocator == 0 ||
         p_config.indirectCommandCapacityPerAllocator == 0 ||
@@ -55,6 +56,7 @@ void AllocatorManager::init(BufferManager& p_buffer_manager, const GpuAllocatorC
     createPage(p_buffer_manager);
 }
 
+// Each page creates one vertex buffer, one index buffer, and one indirect buffer, each subdivided by block allocators.
 uint32_t AllocatorManager::createPage(BufferManager& p_buffer_manager) {
     const uint32_t vertexBufferId = p_buffer_manager.createManagedBuffer(
         static_cast<VkDeviceSize>(_mesh_capacity_blocks) * NB_VERTEX_PER_BLOCK * sizeof(Vertex),
@@ -81,6 +83,7 @@ uint32_t AllocatorManager::createPage(BufferManager& p_buffer_manager) {
     return static_cast<uint32_t>(_pages.size() - 1);
 }
 
+// Prefer reusing an existing page with room in all three allocators before growing storage with a new page.
 uint32_t AllocatorManager::findOrCreatePage(uint32_t p_data_reserved_blocks, BufferManager& p_buffer_manager) {
     for (size_t i = 0; i < _pages.size(); ++i) {
         AllocationPage& page = _pages[i];
@@ -99,6 +102,7 @@ void AllocatorManager::queueMeshUpload(
     const MeshAllocInfo& p_infos,
     BufferManager& p_buffer_manager
 ) {
+    // Vertex/index data and the matching indirect command are queued together so this logical allocation becomes renderable once uploads are applied.
     const uint32_t dataBlocks = static_cast<uint32_t>(p_mesh.getVertex().size() / NB_VERTEX_PER_BLOCK);
     const AllocationPage& page = _pages[p_infos.pageIndex];
 
@@ -131,6 +135,7 @@ void AllocatorManager::queueMeshUpload(
     );
 }
 
+// Freeing or relocating a mesh writes a zero indirect command so stale draw slots stop rendering before or while storage is reused.
 void AllocatorManager::queueZeroIndirect(const MeshAllocInfo& p_infos, BufferManager& p_buffer_manager) {
     const AllocationPage& page = _pages[p_infos.pageIndex];
     const DrawIndirectCommand zeroCommand = makeZeroIndirectCommand();
@@ -143,6 +148,8 @@ void AllocatorManager::queueZeroIndirect(const MeshAllocInfo& p_infos, BufferMan
     );
 }
 
+// A logical allocation id stays stable across updates when reserved capacity still fits;
+// otherwise old storage is freed/zeroed and a fresh page allocation is made.
 int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer_manager) {
     const uint32_t dataBlocks = static_cast<uint32_t>(p_mesh.getVertex().size() / NB_VERTEX_PER_BLOCK);
     const uint32_t reservedDataBlocks = std::max(1u, dataBlocks * _allocation_margin_blocks);
@@ -208,6 +215,7 @@ int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer
     return out;
 }
 
+// Freeing a mesh releases all three buffer allocations, disables the corresponding indirect draw entry, and returns the logical id to the reuse pool.
 void AllocatorManager::freeMesh(int p_pid, BufferManager& p_buffer_manager) {
     if (p_pid < 0) {
         std::ostringstream oss;
@@ -233,6 +241,7 @@ void AllocatorManager::freeMesh(int p_pid, BufferManager& p_buffer_manager) {
     _freeId.push_back(p_pid);
 }
 
+// This counts committed indirect slots across all pages, not only currently visible or non-zero draws.
 uint32_t AllocatorManager::getIndirectCount() const {
     uint32_t total = 0;
     for (const AllocationPage& page : _pages) {

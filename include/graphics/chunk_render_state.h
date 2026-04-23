@@ -11,6 +11,7 @@ class BufferManager;
 class Mesh;
 class SortableMesh;
 
+// Stores allocator-managed logical allocation ids for opaque/transparent mesh data plus the last camera position used to sort transparent data.
 struct ChunkRenderState {
     int opaqueAllocId = -1;
     int transparentAllocId = -1;
@@ -18,6 +19,7 @@ struct ChunkRenderState {
     bool hasTransparentCameraPos = false;
 };
 
+// Maps chunk positions to allocator-managed GPU render state for opaque and transparent chunk meshes.
 class ChunkRenderStateCache {
 public:
     void upload(

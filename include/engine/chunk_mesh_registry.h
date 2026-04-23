@@ -8,6 +8,8 @@
 #include "core/chunk_key.h"
 #include "engine/mesh_builder.h"
 
+// CPU-side mesh cache keyed by chunk position.
+// It is the handoff point between meshing and render sync, not an owner of world chunks or GPU resources.
 class ChunkMeshRegistry {
 public:
     MeshBuilder& getOrCreate(glm::ivec3 p_chunk_pos);

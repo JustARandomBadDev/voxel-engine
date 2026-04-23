@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <array>
 
+// Field order and attribute helpers define the CPU/GPU vertex layout expected by the current graphics pipeline.
 struct Vertex {
     alignas(16) glm::vec3 pos;
     alignas(16) glm::vec3 normal;
@@ -20,6 +21,7 @@ struct Vertex {
         return bindingDescription;
     }
 
+    // These attribute descriptions must stay aligned with the Vertex field layout above.
     static std::array<VkVertexInputAttributeDescription, 4> getAttributeDescriptions() {
         std::array<VkVertexInputAttributeDescription, 4> attributeDescriptions{};
 

@@ -3,6 +3,7 @@
 
 #include "engine/mesh.h"
 
+// Stores transparent faces separately so they can be depth-sorted before rebuilding the inherited Mesh buffers.
 class SortableMesh : public Mesh {
 public:
     void add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, FaceTextureData p_uv, float p_shininess) override;

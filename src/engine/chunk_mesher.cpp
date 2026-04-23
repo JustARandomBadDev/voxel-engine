@@ -4,6 +4,8 @@
 #include "world/chunk.h"
 #include "world/chunk_manager.h"
 
+// Meshing only runs for chunks still marked as needing render sync.
+// The state is intentionally cleared later by ChunkRenderSync after CPU mesh data has been consumed.
 void ChunkMesher::updateChunk(Chunk& p_chunk, ChunkManager& p_chunk_manager, ChunkMeshRegistry& p_chunk_mesh_registry) {
     if (!p_chunk.needsRenderSync()) return;
 

@@ -12,8 +12,10 @@
 class Renderer;
 class Device;
 
+// Owns persistent managed GPU buffers, per-frame uniform buffers, and the shared staging/upload path for allocator-backed mesh uploads.
 class BufferManager {
 public:
+    // Pending uploads own copied CPU bytes until applyCopies() records and submits the staging-buffer transfer.
     struct PendingUpload {
         uint32_t dstBufferId = INVALID_BUFFER_ID;
         VkDeviceSize dstOffset = 0;

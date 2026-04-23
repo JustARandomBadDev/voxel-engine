@@ -13,6 +13,7 @@ constexpr VkPresentModeKHR kPreferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
 constexpr VkPresentModeKHR kFallbackPresentMode = VK_PRESENT_MODE_FIFO_KHR;
 }
 
+// Request enough images to sustain the configured frames-in-flight while respecting surface limits.
 void Swapchain::createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(p_device.getPhysicalDevice(), p_instance);
 
@@ -80,6 +81,7 @@ void Swapchain::createImageViews(Device& p_device) {
     }
 }
 
+// Framebuffers combine the current swapchain image views with the current depth attachment, so they are swapchain-dependent.
 void Swapchain::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& p_device) {
     swapChainFramebuffers.clear();
     swapChainFramebuffers.reserve(swapChainImageViews.size());
@@ -108,6 +110,7 @@ void Swapchain::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& 
     }
 }
 
+// Reusable framebuffer-only cleanup used during swapchain-dependent teardown.
 void Swapchain::cleanupFramebuffers(Device& p_device) {
     for (VkFramebuffer framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(p_device.getDevice(), framebuffer, nullptr);
@@ -116,6 +119,7 @@ void Swapchain::cleanupFramebuffers(Device& p_device) {
     swapChainFramebuffers.clear();
 }
 
+// Destroy swapchain-owned child resources before releasing the swapchain handle itself.
 void Swapchain::cleanup(Device& p_device) {
     cleanupFramebuffers(p_device);
 
@@ -196,6 +200,7 @@ VkPresentModeKHR Swapchain::chooseSwapPresentMode(const std::vector<VkPresentMod
     return kFallbackPresentMode;
 }
 
+// Some platforms provide a fixed surface extent; others require clamping the host framebuffer size to supported limits.
 VkExtent2D Swapchain::chooseSwapExtent(VkExtent2D p_framebuffer_extent, const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;

@@ -8,6 +8,7 @@ class Device;
 class Renderer;
 class Swapchain;
 
+// Owns the terrain texture image, memory, image view, and sampler used by graphics descriptor sets.
 class Texture {
 public:
     void createTextureImage(

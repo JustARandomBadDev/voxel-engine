@@ -10,6 +10,7 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
+// Device selection requires queue-family support, swapchain support, required extensions, and multiDrawIndirect.
 void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
@@ -33,6 +34,8 @@ void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     }
 }
 
+// The runtime requires a graphics+compute-capable family and a present-capable family,
+// creating one logical queue per unique required family.
 void Device::createLogicalDevice(Instance& p_instance) {
     if (physicalDevice == VK_NULL_HANDLE) {
         throw std::runtime_error("Device::createLogicalDevice() -> physical device is not initialized");
@@ -75,6 +78,7 @@ void Device::createLogicalDevice(Instance& p_instance) {
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
+// Depth image, memory, and view are device-owned but recreated for the current swapchain extent/render targets.
 void Device::recreateDepthResources(Swapchain& p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
@@ -82,6 +86,7 @@ void Device::recreateDepthResources(Swapchain& p_swapchain) {
     depthImageView = p_swapchain.createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, *this);
 }
 
+// This releases only swapchain-dependent depth resources and may run across swapchain recreates.
 void Device::cleanupDepthResources() {
     if (device == VK_NULL_HANDLE) return;
 
@@ -123,6 +128,7 @@ bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Sw
     return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.multiDrawIndirect;
 }
 
+// The renderer expects one combined graphics+compute family plus a present-capable family.
 QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const {
     QueueFamilyIndices indices;
 

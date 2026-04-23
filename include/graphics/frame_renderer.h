@@ -18,6 +18,8 @@ enum class FrameRenderStatus {
     NeedsRecreate
 };
 
+// Drives one frame using already initialized graphics subsystems.
+// Returns whether swapchain recreation is required.
 class FrameRenderer {
 public:
     FrameRenderer(

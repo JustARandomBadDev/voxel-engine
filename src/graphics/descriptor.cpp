@@ -10,6 +10,7 @@
 #include "graphics/buffer_manager.h"
 #include "graphics/uniform_buffer.h"
 
+// The pool is sized for one uniform-buffer binding and one sampler binding per swapchain image.
 void Descriptor::createDescriptorPool(Device& p_device, uint32_t p_image_count) {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -31,6 +32,8 @@ void Descriptor::createDescriptorPool(Device& p_device, uint32_t p_image_count) 
     }
 }
 
+// Descriptor sets are allocated one per swapchain image and must match the pipeline layout:
+// binding 0 uses that image's uniform buffer and binding 1 uses the persistent terrain texture sampler/view.
 void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, Device& p_device, uint32_t p_image_count) {
     std::vector<VkDescriptorSetLayout> layouts(p_image_count, p_graphic_pipeline.getDescriptorSetLayout());
 
@@ -82,6 +85,7 @@ void Descriptor::createDescriptorSets(BufferManager& p_buffer_manager, Texture& 
     }
 }
 
+// Destroying the descriptor pool releases all descriptor sets allocated from it.
 void Descriptor::cleanup(Device& p_device) {
     if (descriptorPool != VK_NULL_HANDLE) {
         vkDestroyDescriptorPool(p_device.getDevice(), descriptorPool, nullptr);

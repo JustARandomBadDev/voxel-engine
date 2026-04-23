@@ -10,6 +10,7 @@ class Device;
 class GraphicPipeline;
 class Texture;
 
+// Owns the graphics descriptor pool and one descriptor set per swapchain image.
 class Descriptor {
 public:
     void createDescriptorPool(Device& p_device, uint32_t p_image_count);

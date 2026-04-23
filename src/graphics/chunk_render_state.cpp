@@ -11,6 +11,8 @@ constexpr float kTransparentResortCameraDistance = 1.0f;
 constexpr float kTransparentResortCameraDistanceSquared =
     kTransparentResortCameraDistance * kTransparentResortCameraDistance;
 
+// Transparent meshes are regenerated when the chunk changed, no transparent allocation exists yet,
+// or the camera moved far enough to invalidate the previous sort order.
 bool shouldResortTransparentMesh(
     const ChunkRenderState& p_state,
     bool p_chunk_is_dirty,
@@ -25,6 +27,7 @@ bool shouldResortTransparentMesh(
 }
 } // namespace
 
+// Removing a chunk render state must release both opaque and transparent allocator-backed allocations.
 void ChunkRenderStateCache::freeAllocations(ChunkRenderState& p_state, BufferManager& p_buffer_manager) {
     freeOpaqueAllocation(p_state, p_buffer_manager);
     freeTransparentAllocation(p_state, p_buffer_manager);
@@ -55,6 +58,8 @@ void ChunkRenderStateCache::upload(
     glm::vec3 p_camera_pos,
     BufferManager& p_buffer_manager
 ) {
+    // Consumes current CPU meshes for one chunk, updates allocator-managed GPU allocations,
+    // and only re-sorts/reuploads transparent data when the chunk or camera movement requires it.
     ChunkRenderState& state = _states[makeChunkKey(p_chunk_pos)];
 
     if (!p_opaque_mesh.isEmpty()) {
@@ -88,6 +93,7 @@ void ChunkRenderStateCache::upload(
     } else freeTransparentAllocation(state, p_buffer_manager);
 }
 
+// Removal frees allocator-backed GPU state before dropping the cache entry.
 void ChunkRenderStateCache::remove(glm::ivec3 p_chunk_pos, BufferManager& p_buffer_manager) {
     auto it = _states.find(makeChunkKey(p_chunk_pos));
     if (it == _states.end()) return;
@@ -96,6 +102,7 @@ void ChunkRenderStateCache::remove(glm::ivec3 p_chunk_pos, BufferManager& p_buff
     _states.erase(it);
 }
 
+// Cleanup releases all allocator-managed chunk render allocations before clearing the cache.
 void ChunkRenderStateCache::cleanup(BufferManager& p_buffer_manager) {
     for (auto& state_entry : _states) {
         freeAllocations(state_entry.second, p_buffer_manager);

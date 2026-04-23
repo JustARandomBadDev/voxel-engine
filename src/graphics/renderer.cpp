@@ -5,6 +5,7 @@
 #include "graphics/device.h"
 #include "graphics/instance.h"
 
+// Graphics draw commands and transient upload/copy commands are allocated from the graphics+compute command pool.
 void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
     QueueFamilyIndices queueFamilyIndices = p_device.findQueueFamilies(p_device.getPhysicalDevice(), p_instance);
 
@@ -18,6 +19,8 @@ void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
     }
 }
 
+// Per-image draw command buffers track the current swapchain image count,
+// while the copy command buffer is allocated once and reused by upload helpers.
 void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     if (!commandBuffers.empty()) {
         vkFreeCommandBuffers(
@@ -58,6 +61,7 @@ void Renderer::createCommandBuffers(Device& p_device, uint32_t p_image_count) {
     }
 }
 
+// Acquire synchronization is sized by frames-in-flight, while render-finished semaphores follow swapchain image count.
 void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, uint32_t p_image_count) {
     if (!imageAvailableSemaphores.empty()) {
         for (size_t i = 0; i < imageAvailableSemaphores.size(); i++) {
@@ -107,6 +111,7 @@ void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, 
     }
 }
 
+// Command buffers are marked dirty when swapchain-dependent state or indirect draw state changes.
 void Renderer::invalidateAllCommandBuffers() {
     for (uint32_t i = 0; i < swapchainImageCount; i++) {
         commandBufferDirty[i] = true;
@@ -117,6 +122,7 @@ void Renderer::resetCopyCommandBuffer() {
     vkResetCommandBuffer(copyCommandBuffer, 0);
 }
 
+// Renderer releases frame-execution sync objects and destroys the command pool, which releases its command buffers.
 void Renderer::cleanup(Device& p_device) {
     for (size_t i = 0; i < framesInFlight; i++) {
         vkDestroySemaphore(p_device.getDevice(), imageAvailableSemaphores[i], nullptr);

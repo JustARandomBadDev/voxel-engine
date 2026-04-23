@@ -8,6 +8,7 @@
 class Device;
 class Swapchain;
 
+// Owns the persistent descriptor set layout plus the current render pass and graphics pipelines for voxel rendering.
 class GraphicPipeline {
 public:
     void createRenderPass(Swapchain& p_swapchain, Device& p_device);

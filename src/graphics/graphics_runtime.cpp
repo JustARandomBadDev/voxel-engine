@@ -29,6 +29,7 @@ void validateGraphicsResources(const GraphicsResourceConfig& resources) {
     validateRequiredResourcePath(resources.voxelFragmentShader, "graphicsResources.voxelFragmentShader");
 }
 
+// Reject invalid public init config eagerly through exceptions before any runtime setup proceeds.
 void validateInitConfig(const VoxelEngineInitConfig& config) {
     if (!config.vulkanHost.createSurface) {
         throw std::runtime_error("GraphicsRuntime::init() -> vulkanHost.createSurface callback must be set");
@@ -54,6 +55,8 @@ GraphicsRuntime::GraphicsRuntime()
   frameCommandRecorder(renderer, swapchain, graphicPipeline, descriptor, bufferManager),
   frameRenderer(device, renderer, swapchain, bufferManager, frameCommandRecorder) {}
 
+// Framebuffer extent is queried through the host callback copied from init config.
+// The runtime stores the callback object, but not the captured host-side state behind it.
 VkExtent2D GraphicsRuntime::getFramebufferExtent() const {
     return _host_config.getFramebufferExtent();
 }
@@ -84,6 +87,8 @@ bool GraphicsRuntime::recreateSwapchain() {
     return true;
 }
 
+// Single render-time gate for swapchain validity.
+// It handles host extent changes and deferred recreate requests before frame execution proceeds.
 bool GraphicsRuntime::ensureSwapchainReady() {
     const VkExtent2D framebufferExtent = getFramebufferExtent();
     if (framebufferExtent.width == 0 || framebufferExtent.height == 0) {
@@ -126,6 +131,8 @@ void GraphicsRuntime::init(const VoxelEngineInitConfig& config) {
     frameRenderer.onFrameResourcesRecreated();
 }
 
+// Pending uploads are flushed before frame rendering.
+// A frame can request swapchain recreation, which is handled immediately through the same readiness path.
 void GraphicsRuntime::render(const Camera& camera) {
     if (!ensureSwapchainReady()) return;
 
@@ -137,6 +144,8 @@ void GraphicsRuntime::render(const Camera& camera) {
     }
 }
 
+// Cleanup happens only after idling the device.
+// Resources are then released in dependency order before device and instance teardown.
 void GraphicsRuntime::cleanup() {
     if (device.getDevice() != VK_NULL_HANDLE) {
         vkDeviceWaitIdle(device.getDevice());

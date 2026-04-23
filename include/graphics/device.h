@@ -17,6 +17,7 @@ struct QueueFamilyIndices {
 class Instance;
 class Swapchain;
 
+// Owns the selected physical/logical device, queues, and the current depth attachment resources.
 class Device {
 public:
     void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);

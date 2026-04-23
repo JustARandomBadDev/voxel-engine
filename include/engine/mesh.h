@@ -8,12 +8,15 @@
 #include "engine/face_position.h"
 #include "engine/texture_data.h"
 
+// One quad worth of geometry, with optional sort metadata used by transparent mesh handling.
 struct FaceData {
     Vertex vertex[4];
     float distance;
     glm::vec3 center;
 };
 
+// CPU-side vertex/index data for one chunk mesh stream.
+// This type owns no GPU resources.
 class Mesh {
 public:
     void add(FaceData p_face);

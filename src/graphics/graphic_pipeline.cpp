@@ -13,6 +13,7 @@ constexpr VkFrontFace kOpaqueFrontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 constexpr VkCullModeFlags kTransparentCullMode = VK_CULL_MODE_NONE;
 }
 
+// The render pass depends on the current swapchain color format and depth format, so it is recreated with swapchain-dependent resources.
 void GraphicPipeline::createRenderPass(Swapchain& p_swapchain, Device& p_device) {
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = p_swapchain.getSwapChainImageFormat();
@@ -71,6 +72,8 @@ void GraphicPipeline::createRenderPass(Swapchain& p_swapchain, Device& p_device)
     }
 }
 
+// Binding 0 is the per-frame uniform buffer and binding 1 is the terrain texture sampler;
+// descriptor writes and shaders must stay aligned with this layout.
 void GraphicPipeline::createDescriptorSetLayout(Device& p_device) {
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding = 0;
@@ -97,6 +100,8 @@ void GraphicPipeline::createDescriptorSetLayout(Device& p_device) {
     }
 }
 
+// Opaque and transparent pipelines share the same vertex layout, descriptor set layout, and render pass,
+// differing mainly in culling, blending, and depth-write behavior.
 void GraphicPipeline::createGraphicsPipeline(
     const std::filesystem::path& vertex_shader_path,
     const std::filesystem::path& fragment_shader_path,
@@ -228,6 +233,7 @@ void GraphicPipeline::createGraphicsPipeline(
         );
     }
 
+    // The transparent pipeline reuses the same render pass and shader stages, but disables depth writes and enables alpha blending.
     depthStencil.depthWriteEnable = VK_FALSE;
 
     colorBlendAttachment.blendEnable = VK_TRUE;
@@ -251,6 +257,7 @@ void GraphicPipeline::createGraphicsPipeline(
     vkDestroyShaderModule(p_device.getDevice(), vertShaderModule, nullptr);
 }
 
+// Releases the current pipelines, pipeline layouts, and render pass.
 void GraphicPipeline::cleanup(Device& p_device) {
     if (opaquePipeline != VK_NULL_HANDLE) {
         vkDestroyPipeline(p_device.getDevice(), opaquePipeline, nullptr);
@@ -276,6 +283,7 @@ void GraphicPipeline::cleanup(Device& p_device) {
     }
 }
 
+// The descriptor set layout survives swapchain recreation and is destroyed only during full graphics teardown.
 void GraphicPipeline::cleanupDescriptorSetLayout(Device& p_device) {
     if (descriptorSetLayout != VK_NULL_HANDLE) {
         vkDestroyDescriptorSetLayout(p_device.getDevice(), descriptorSetLayout, nullptr);

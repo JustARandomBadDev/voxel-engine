@@ -22,12 +22,14 @@ struct DrawIndirectCommand {
     uint32_t firstInstance;
 };
 
+// One page owns parallel vertex/index/indirect allocators backed by one set of managed buffers.
 struct AllocationPage {
     Allocator vertexAllocator;
     Allocator indexAllocator;
     Allocator indirectAllocator;
 };
 
+// Stores the page and buffer allocations currently associated with one logical mesh id.
 struct MeshAllocInfo {
     uint32_t pageIndex = 0;
     BufferAllocation vertex;
@@ -35,6 +37,7 @@ struct MeshAllocInfo {
     BufferAllocation indirect;
 };
 
+// Maps persistent logical mesh allocation ids to allocator-managed regions inside page-based GPU buffers and queues uploads to populate them.
 class AllocatorManager {
 public:
     void init(BufferManager& p_buffer_manager, const GpuAllocatorConfig& p_config);

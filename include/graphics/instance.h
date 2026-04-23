@@ -6,6 +6,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+// Owns the Vulkan instance, optional debug messenger, and the surface created through the host callback.
 class Instance {
 public:
     void createInstance(bool p_enable_validation_layers, const std::vector<std::string>& p_required_extensions);

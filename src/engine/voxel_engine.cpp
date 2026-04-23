@@ -33,6 +33,8 @@ public:
         if (chunk) chunk->markRenderSyncDirty();
     }
 
+    // Border voxel edits can change face visibility across chunk boundaries,
+    // so adjacent loaded chunks must also be invalidated for remeshing/render sync.
     void markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) {
         if (local_voxel_pos.x == 0)                   markChunkDirtyIfLoaded({chunk_pos.x - 1, chunk_pos.y, chunk_pos.z});
         else if (local_voxel_pos.x == CHUNK_SIZE - 1) markChunkDirtyIfLoaded({chunk_pos.x + 1, chunk_pos.y, chunk_pos.z});
@@ -67,6 +69,7 @@ void VoxelEngine::init(const VoxelEngineInitConfig& config) {
     _impl->app.init(config);
 }
 
+// Meshing must run first so render sync can consume the current CPU mesh cache for each chunk.
 void VoxelEngine::update(const Camera& camera) {
     _impl->chunk_mesher.updateAll(_impl->chunk_manager, _impl->chunk_mesh_registry);
     _impl->chunk_render_sync.syncAll(
@@ -94,6 +97,8 @@ void VoxelEngine::createChunk(glm::ivec3 pos) {
     _impl->chunk_manager.addChunk(pos);
 }
 
+// Neighbors are invalidated first because removing a chunk can expose boundary faces.
+// Render-side state is cleared before erasing the world chunk itself.
 void VoxelEngine::removeChunk(glm::ivec3 pos) {
     _impl->markAdjacentChunksDirty(pos);
     _impl->chunk_render_sync.removeChunk(

@@ -14,6 +14,8 @@ class Renderer;
 class Swapchain;
 class Texture;
 
+// Coordinates graphics runtime initialization and swapchain-dependent recreate/cleanup.
+// The subsystems it operates on are owned by GraphicsRuntime.
 class GraphicsRuntimeLifecycle {
 public:
     GraphicsRuntimeLifecycle(

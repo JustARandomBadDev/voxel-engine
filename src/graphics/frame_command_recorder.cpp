@@ -24,6 +24,7 @@ CommandRecorder::CommandRecorder(
   _descriptor(p_descriptor),
   _buffer_manager(p_buffer_manager) {}
 
+// Opaque draws iterate allocator pages and emit one indirect draw call per populated page.
 void CommandRecorder::recordOpaqueDraws(VkCommandBuffer p_command_buffer, uint32_t p_image_index) {
     vkCmdBindPipeline(
         p_command_buffer,
@@ -64,6 +65,7 @@ void CommandRecorder::recordOpaqueDraws(VkCommandBuffer p_command_buffer, uint32
     }
 }
 
+// Transparent draws use the separate transparent allocation domain and matching pipeline/layout.
 void CommandRecorder::recordTransparentDraws(VkCommandBuffer p_command_buffer, uint32_t p_image_index) {
     vkCmdBindPipeline(
         p_command_buffer,
@@ -110,6 +112,8 @@ void CommandRecorder::recordTransparentDraws(VkCommandBuffer p_command_buffer, u
     }
 }
 
+// Recording assumes swapchain-dependent frame resources are already valid for p_image_index.
+// It encodes one full render pass for the selected swapchain image.
 void CommandRecorder::record(uint32_t p_image_index, const glm::vec4& p_clear_color) {
     const VkCommandBuffer command = _renderer.getCommandBuffer(p_image_index);
 
@@ -157,6 +161,7 @@ void CommandRecorder::record(uint32_t p_image_index, const glm::vec4& p_clear_co
     scissor.extent = _swapchain.getSwapChainExtent();
     vkCmdSetScissor(command, 0, 1, &scissor);
 
+    // Opaque draws are recorded first so the opaque and transparent paths stay ordered and predictable.
     recordOpaqueDraws(command, p_image_index);
     recordTransparentDraws(command, p_image_index);
 

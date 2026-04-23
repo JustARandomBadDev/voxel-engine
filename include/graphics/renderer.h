@@ -9,6 +9,7 @@ class GraphicPipeline;
 class Instance;
 class Swapchain;
 
+// Owns frame-execution resources: command pool, per-image command buffers, copy command buffer, and sync objects.
 class Renderer {
 public:
     void createCommandPool(Device& p_device, Instance& p_instance);

@@ -18,6 +18,8 @@
 #include "graphics/swapchain.h"
 #include "graphics/texture.h"
 
+// High-level Vulkan graphics runtime facade.
+// Owns the main graphics subsystems and coordinates init, frame rendering, swapchain recreation, and cleanup.
 class GraphicsRuntime {
 public:
     GraphicsRuntime();

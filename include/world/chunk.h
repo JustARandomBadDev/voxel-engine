@@ -20,10 +20,13 @@ public:
     Voxel      getVoxel(int x, int y, int z) { return _voxels[x][y][z]; }
     Voxel      getVoxel(int x, int y, int z) const { return _voxels[x][y][z]; }
 
+    // This state means the chunk still needs to pass through CPU meshing and render synchronization.
+    // It is intentionally broader than a simple local "modified" flag.
     bool       needsRenderSync() const { return _is_modify; }
     void       markRenderSyncDirty() { _is_modify = true; }
     void       clearRenderSyncDirty() { _is_modify = false; }
     
+    // Raw voxel storage indexed by chunk-local coordinates in [0, CHUNK_SIZE) on each axis.
     Voxel (&getVoxels()) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] { return _voxels; }
     const Voxel (&getVoxels() const) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] { return _voxels; }
     

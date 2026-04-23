@@ -31,6 +31,8 @@ void FrameRenderer::onFrameResourcesRecreated() {
     refreshIndirectCounts();
 }
 
+// Recorded command buffers are invalidated when indirect draw counts change,
+// because the recorded submissions must match the current allocator pages and indirect buffers.
 void FrameRenderer::syncCommandBufferRecordingState() {
     const uint32_t opaqueIndirectCount = _buffer_manager.getAllocator().getIndirectCount();
     const uint32_t transparentIndirectCount = _buffer_manager.getTransparentAllocator().getIndirectCount();
@@ -62,6 +64,8 @@ void FrameRenderer::updateFrameResources(uint32_t p_image_index, const Camera& c
     );
 }
 
+// Command buffers are reused until invalidated by frame-resource recreation
+// or by allocator/draw-count changes detected for the current draw setup.
 void FrameRenderer::ensureFrameCommandBufferRecorded(uint32_t p_image_index, const glm::vec4& p_clear_color) {
     if (_renderer.isCommandBufferDirty(p_image_index)) {
         _command_recorder.record(p_image_index, p_clear_color);
@@ -107,6 +111,8 @@ VkResult FrameRenderer::presentFrame(uint32_t p_image_index) {
     return vkQueuePresentKHR(_device.getPresentQueue(), &presentInfo);
 }
 
+// Frame driver: validate recording state, wait/acquire, update frame resources,
+// submit/present, and report whether the higher-level runtime must recreate the swapchain.
 FrameRenderStatus FrameRenderer::render(const Camera& camera, const glm::vec4& p_clear_color) {
     syncCommandBufferRecordingState();
 
@@ -119,6 +125,7 @@ FrameRenderStatus FrameRenderer::render(const Camera& camera, const glm::vec4& p
     );
 
     uint32_t imageIndex = 0;
+    // Acquire/present report recreate needs back to the higher-level runtime instead of rebuilding here.
     const VkResult acquireResult = acquireFrameImage(imageIndex);
     if (acquireResult == VK_ERROR_OUT_OF_DATE_KHR) {
         return FrameRenderStatus::NeedsRecreate;
