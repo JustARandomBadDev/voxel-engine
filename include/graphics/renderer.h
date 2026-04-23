@@ -14,7 +14,6 @@ public:
     void createCommandPool(Device& p_device, Instance& p_instance);
     void createCommandBuffers(Device& p_device, uint32_t p_image_count);
     void createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, uint32_t p_image_count);
-    void createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain& p_swapchain, Device& p_device);
     void invalidateAllCommandBuffers();
     void resetCopyCommandBuffer();
     void cleanup(Device& p_device);

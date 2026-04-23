@@ -142,11 +142,8 @@ void GraphicsRuntime::cleanup() {
         vkDeviceWaitIdle(device.getDevice());
     }
 
+    runtimeLifecycle.cleanupSwapchainDependentResources();
     swapchain.cleanup(device);
-    device.cleanupDepthResources();
-    graphicPipeline.cleanup(device);
-    bufferManager.cleanupUniformBuffer();
-    descriptor.cleanup(device);
     texture.cleanup(device);
     graphicPipeline.cleanupDescriptorSetLayout(device);
     chunkRenderStateCache.cleanup(bufferManager);

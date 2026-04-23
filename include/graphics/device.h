@@ -21,7 +21,7 @@ class Device {
 public:
     void pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain);
     void createLogicalDevice(Instance& p_instance);
-    void createDepthResources(Swapchain& p_swapchain);
+    void recreateDepthResources(Swapchain& p_swapchain);
     void cleanupDepthResources();
     void cleanup();
 

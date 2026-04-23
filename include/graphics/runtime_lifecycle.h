@@ -37,6 +37,7 @@ public:
     );
 
     void recreateSwapchain(VkExtent2D p_framebuffer_extent);
+    void cleanupSwapchainDependentResources();
 
 private:
     Instance& _instance;
@@ -47,9 +48,12 @@ private:
     Descriptor& _descriptor;
     GraphicPipeline& _graphic_pipeline;
     BufferManager& _buffer_manager;
+    GraphicsResourceConfig _resources;
+    uint32_t _frames_in_flight = 0;
 
     void createSwapchainResources(VkExtent2D p_framebuffer_extent, uint32_t p_frames_in_flight);
     void createSwapchainRenderTargets();
+    void createPipelineResources();
     void createFrameResources(uint32_t p_frames_in_flight);
     void recreateFrameResources();
 };

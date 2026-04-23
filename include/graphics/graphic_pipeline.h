@@ -34,15 +34,15 @@ public:
     const VkPipelineLayout& getTransparentPipelineLayout() const { return transparentPipelineLayout; }
 
 private:
-    VkRenderPass renderPass;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
 
-    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 
-    VkPipelineLayout opaquePipelineLayout;
-    VkPipeline opaquePipeline;
+    VkPipelineLayout opaquePipelineLayout = VK_NULL_HANDLE;
+    VkPipeline opaquePipeline = VK_NULL_HANDLE;
 
-    VkPipelineLayout transparentPipelineLayout;
-    VkPipeline transparentPipeline;
+    VkPipelineLayout transparentPipelineLayout = VK_NULL_HANDLE;
+    VkPipeline transparentPipeline = VK_NULL_HANDLE;
 };
 
 #endif // VULKAN_PIPELINE_H

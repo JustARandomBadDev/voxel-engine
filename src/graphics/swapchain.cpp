@@ -1,12 +1,12 @@
 #include "graphics/swapchain.h"
 
+#include <array>
 #include <algorithm>
 #include <limits>
 
 #include "graphics/device.h"
 #include "graphics/graphic_pipeline.h"
 #include "graphics/instance.h"
-#include "graphics/renderer.h"
 
 namespace {
 constexpr VkPresentModeKHR kPreferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
@@ -72,18 +72,6 @@ void Swapchain::createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_ins
     swapChainExtent = extent;
 }
 
-void Swapchain::recreateSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device) {
-    vkDeviceWaitIdle(p_device.getDevice());
-
-    cleanup(p_device);
-    p_device.cleanupDepthResources();
-
-    createSwapChain(p_framebuffer_extent, p_instance, p_device, p_renderer.getFramesInFlight());
-    createImageViews(p_device);
-    p_device.createDepthResources(*this);
-    p_renderer.createFramebuffers(p_graphic_pipeline, *this, p_device);
-}
-
 void Swapchain::createImageViews(Device& p_device) {
     swapChainImageViews.resize(swapChainImages.size());
 
@@ -92,10 +80,44 @@ void Swapchain::createImageViews(Device& p_device) {
     }
 }
 
-void Swapchain::cleanup(Device& p_device) {
-    for (auto framebuffer : swapChainFramebuffers) {
+void Swapchain::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& p_device) {
+    swapChainFramebuffers.clear();
+    swapChainFramebuffers.reserve(swapChainImageViews.size());
+
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::array<VkImageView, 2> attachments = {
+            swapChainImageViews[i],
+            p_device.getDepthImageView()
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = p_graphic_pipeline.getRenderPass();
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        framebufferInfo.pAttachments = attachments.data();
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        VkFramebuffer framebuffer = VK_NULL_HANDLE;
+        if (vkCreateFramebuffer(p_device.getDevice(), &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
+            throw std::runtime_error("Swapchain::createFramebuffers() -> failed to create framebuffer");
+        }
+
+        swapChainFramebuffers.push_back(framebuffer);
+    }
+}
+
+void Swapchain::cleanupFramebuffers(Device& p_device) {
+    for (VkFramebuffer framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(p_device.getDevice(), framebuffer, nullptr);
     }
+
+    swapChainFramebuffers.clear();
+}
+
+void Swapchain::cleanup(Device& p_device) {
+    cleanupFramebuffers(p_device);
 
     for (auto imageView : swapChainImageViews) {
         vkDestroyImageView(p_device.getDevice(), imageView, nullptr);
@@ -185,8 +207,4 @@ VkExtent2D Swapchain::chooseSwapExtent(VkExtent2D p_framebuffer_extent, const Vk
 
         return actualExtent;
     }
-}
-
-void Swapchain::addSwapChainFramebuffers(VkFramebuffer pframeBuffer) {
-    swapChainFramebuffers.push_back(pframeBuffer);
 }

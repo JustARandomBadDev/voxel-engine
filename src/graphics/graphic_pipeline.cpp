@@ -252,17 +252,35 @@ void GraphicPipeline::createGraphicsPipeline(
 }
 
 void GraphicPipeline::cleanup(Device& p_device) {
-    vkDestroyPipeline(p_device.getDevice(), opaquePipeline, nullptr);
-    vkDestroyPipelineLayout(p_device.getDevice(), opaquePipelineLayout, nullptr);
+    if (opaquePipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(p_device.getDevice(), opaquePipeline, nullptr);
+        opaquePipeline = VK_NULL_HANDLE;
+    }
+    if (opaquePipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(p_device.getDevice(), opaquePipelineLayout, nullptr);
+        opaquePipelineLayout = VK_NULL_HANDLE;
+    }
 
-    vkDestroyPipeline(p_device.getDevice(), transparentPipeline, nullptr);
-    vkDestroyPipelineLayout(p_device.getDevice(), transparentPipelineLayout, nullptr);
+    if (transparentPipeline != VK_NULL_HANDLE) {
+        vkDestroyPipeline(p_device.getDevice(), transparentPipeline, nullptr);
+        transparentPipeline = VK_NULL_HANDLE;
+    }
+    if (transparentPipelineLayout != VK_NULL_HANDLE) {
+        vkDestroyPipelineLayout(p_device.getDevice(), transparentPipelineLayout, nullptr);
+        transparentPipelineLayout = VK_NULL_HANDLE;
+    }
 
-    vkDestroyRenderPass(p_device.getDevice(), renderPass, nullptr);
+    if (renderPass != VK_NULL_HANDLE) {
+        vkDestroyRenderPass(p_device.getDevice(), renderPass, nullptr);
+        renderPass = VK_NULL_HANDLE;
+    }
 }
 
 void GraphicPipeline::cleanupDescriptorSetLayout(Device& p_device) {
-    vkDestroyDescriptorSetLayout(p_device.getDevice(), descriptorSetLayout, nullptr);
+    if (descriptorSetLayout != VK_NULL_HANDLE) {
+        vkDestroyDescriptorSetLayout(p_device.getDevice(), descriptorSetLayout, nullptr);
+        descriptorSetLayout = VK_NULL_HANDLE;
+    }
 }
 
 VkShaderModule GraphicPipeline::createShaderModule(const std::vector<char>& code, Device& p_device) {

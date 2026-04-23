@@ -1,12 +1,9 @@
 #include "graphics/renderer.h"
 
-#include <array>
 #include <stdexcept>
 
 #include "graphics/device.h"
-#include "graphics/graphic_pipeline.h"
 #include "graphics/instance.h"
-#include "graphics/swapchain.h"
 
 void Renderer::createCommandPool(Device& p_device, Instance& p_instance) {
     QueueFamilyIndices queueFamilyIndices = p_device.findQueueFamilies(p_device.getPhysicalDevice(), p_instance);
@@ -107,31 +104,6 @@ void Renderer::createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, 
         if (vkCreateSemaphore(p_device.getDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS) {
             throw std::runtime_error("failed to create render-finished semaphores for swapchain images!");
         }
-    }
-}
-
-void Renderer::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain& p_swapchain, Device& p_device) {
-    for (size_t i = 0; i < p_swapchain.getSwapChainImageViews().size(); i++) {
-        std::array<VkImageView, 2> attachments = {
-            p_swapchain.getSwapChainImageViews()[i],
-            p_device.getDepthImageView()
-        };
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = p_graphic_pipeline.getRenderPass();
-        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-        framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = p_swapchain.getSwapChainExtent().width;
-        framebufferInfo.height = p_swapchain.getSwapChainExtent().height;
-        framebufferInfo.layers = 1;
-
-        VkFramebuffer frameBuffer;
-        if (vkCreateFramebuffer(p_device.getDevice(), &framebufferInfo, nullptr, &frameBuffer) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create framebuffer!");
-        }
-
-        p_swapchain.addSwapChainFramebuffers(frameBuffer);
     }
 }
 

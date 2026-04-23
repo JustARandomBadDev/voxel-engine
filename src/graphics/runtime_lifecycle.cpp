@@ -39,9 +39,18 @@ void GraphicsRuntimeLifecycle::createSwapchainResources(VkExtent2D p_framebuffer
     _swapchain.createImageViews(_device);
 }
 
+void GraphicsRuntimeLifecycle::createPipelineResources() {
+    _graphic_pipeline.createRenderPass(_swapchain, _device);
+    _graphic_pipeline.createGraphicsPipeline(
+        _resources.voxelVertexShader,
+        _resources.voxelFragmentShader,
+        _device
+    );
+}
+
 void GraphicsRuntimeLifecycle::createSwapchainRenderTargets() {
-    _device.createDepthResources(_swapchain);
-    _renderer.createFramebuffers(_graphic_pipeline, _swapchain, _device);
+    _device.recreateDepthResources(_swapchain);
+    _swapchain.createFramebuffers(_graphic_pipeline, _device);
 }
 
 void GraphicsRuntimeLifecycle::createFrameResources(uint32_t p_frames_in_flight) {
@@ -67,6 +76,14 @@ void GraphicsRuntimeLifecycle::recreateFrameResources() {
     _renderer.invalidateAllCommandBuffers();
 }
 
+void GraphicsRuntimeLifecycle::cleanupSwapchainDependentResources() {
+    _swapchain.cleanupFramebuffers(_device);
+    _device.cleanupDepthResources();
+    _buffer_manager.cleanupUniformBuffer();
+    _descriptor.cleanup(_device);
+    _graphic_pipeline.cleanup(_device);
+}
+
 void GraphicsRuntimeLifecycle::initialize(
     const VulkanHostConfig& p_host_config,
     const GraphicsResourceConfig& p_resources,
@@ -75,6 +92,9 @@ void GraphicsRuntimeLifecycle::initialize(
     bool p_enable_validation_layers,
     VkExtent2D p_framebuffer_extent
 ) {
+    _resources = p_resources;
+    _frames_in_flight = p_frames_in_flight;
+
     _instance.createInstance(p_enable_validation_layers, p_host_config.requiredInstanceExtensions);
     _instance.setupDebugMessenger();
     _instance.createSurface(p_host_config.createSurface);
@@ -86,13 +106,8 @@ void GraphicsRuntimeLifecycle::initialize(
 
     createSwapchainResources(p_framebuffer_extent, p_frames_in_flight);
 
-    _graphic_pipeline.createRenderPass(_swapchain, _device);
     _graphic_pipeline.createDescriptorSetLayout(_device);
-    _graphic_pipeline.createGraphicsPipeline(
-        p_resources.voxelVertexShader,
-        p_resources.voxelFragmentShader,
-        _device
-    );
+    createPipelineResources();
 
     _renderer.createCommandPool(_device, _instance);
     createSwapchainRenderTargets();
@@ -106,6 +121,15 @@ void GraphicsRuntimeLifecycle::initialize(
 }
 
 void GraphicsRuntimeLifecycle::recreateSwapchain(VkExtent2D p_framebuffer_extent) {
-    _swapchain.recreateSwapChain(p_framebuffer_extent, _instance, _graphic_pipeline, _renderer, _device);
+    vkDeviceWaitIdle(_device.getDevice());
+
+    // 1. Destroy resources that are tied to the current swapchain images/format.
+    cleanupSwapchainDependentResources();
+    _swapchain.cleanup(_device);
+
+    // 2. Rebuild swapchain storage and its dependent render targets in a fixed order.
+    createSwapchainResources(p_framebuffer_extent, _frames_in_flight);
+    createPipelineResources();
+    createSwapchainRenderTargets();
     recreateFrameResources();
 }

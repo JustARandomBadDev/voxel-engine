@@ -75,7 +75,7 @@ void Device::createLogicalDevice(Instance& p_instance) {
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void Device::createDepthResources(Swapchain& p_swapchain) {
+void Device::recreateDepthResources(Swapchain& p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
     BufferManager::createImage(p_swapchain.getSwapChainExtent().width, p_swapchain.getSwapChainExtent().height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, *this);
