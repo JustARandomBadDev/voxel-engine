@@ -6,7 +6,7 @@
 #include "engine/chunk_mesh_registry.h"
 #include "engine/chunk_mesher.h"
 #include "engine/voxel_data.h"
-#include "graphics/app.h"
+#include "graphics/graphics_runtime.h"
 #include "graphics/chunk_render_sync.h"
 #include "world/chunk_manager.h"
 
@@ -22,7 +22,7 @@ bool checkLocalPos(glm::ivec3 local_voxel_pos) {
 
 class VoxelEngine::Impl {
 public:
-    VulkanApp app;
+    GraphicsRuntime app;
     ChunkManager chunk_manager;
     ChunkMesher chunk_mesher;
     ChunkMeshRegistry chunk_mesh_registry;

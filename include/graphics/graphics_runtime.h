@@ -5,32 +5,34 @@
 
 #include "core/camera.h"
 #include "engine/voxel_engine_config.h"
-#include "graphics/buffer.h"
 #include "graphics/buffer_manager.h"
 #include "graphics/chunk_render_state.h"
 #include "graphics/descriptor.h"
 #include "graphics/device.h"
+#include "graphics/command_recorder.h"
+#include "graphics/frame_renderer.h"
 #include "graphics/instance.h"
 #include "graphics/graphic_pipeline.h"
 #include "graphics/renderer.h"
+#include "graphics/runtime_lifecycle.h"
 #include "graphics/swapchain.h"
 #include "graphics/texture.h"
 
-class VulkanApp {
+class GraphicsRuntime {
 public:
+    GraphicsRuntime();
+
     void init(const VoxelEngineInitConfig& config);
     void render(const Camera& camera);
-    void drawFrame(const Camera& camera);
-    void recordCommandBuffer(uint32_t imageIndex);
     void cleanup();
 
-    BufferManager&               getBufferManager()               { return bufferManager; }
-    const BufferManager&         getBufferManager()         const { return bufferManager; }
-    ChunkRenderStateCache&       getChunkRenderStateCache()       { return chunkRenderStateCache; }
+    BufferManager& getBufferManager() { return bufferManager; }
+    const BufferManager& getBufferManager() const { return bufferManager; }
+
+    ChunkRenderStateCache& getChunkRenderStateCache() { return chunkRenderStateCache; }
     const ChunkRenderStateCache& getChunkRenderStateCache() const { return chunkRenderStateCache; }
-    Renderer&                    getRenderer()                    { return renderer; }
-    const Renderer&              getRenderer()              const { return renderer; }
-    float                        getAspectRatio()           const;
+
+    float getAspectRatio() const;
 
 private:
     Instance instance;
@@ -42,17 +44,17 @@ private:
     Texture texture;
     Descriptor descriptor;
     GraphicPipeline graphicPipeline;
+    GraphicsRuntimeLifecycle runtimeLifecycle;
+    CommandRecorder frameCommandRecorder;
+    FrameRenderer frameRenderer;
 
-    uint32_t _last_opaque_indirect_count = 0;
-    uint32_t _last_transparent_indirect_count = 0;
     glm::vec4 _clear_color = {0.f, 0.f, 1.f, 1.0f};
     VulkanHostConfig _host_config;
     bool _swapchain_needs_recreate = false;
 
-    void initVulkan(const GraphicsResourceConfig& resources, const GpuAllocatorConfig& gpu_allocator_config, uint32_t p_frames_in_flight, bool p_enable_validation_layers);
-    bool recreateSwapchainResources();
+    bool recreateSwapchain();
     VkExtent2D getFramebufferExtent() const;
-    bool syncSwapchainToHostExtent();
+    bool ensureSwapchainReady();
 };
 
 #endif // VULKAN_APP_HPP
