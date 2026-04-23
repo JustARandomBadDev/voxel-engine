@@ -357,12 +357,7 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
     scissor.extent = swapchain.getSwapChainExtent();
     vkCmdSetScissor(command, 0, 1, &scissor);
 
-    VkBuffer vertexBuffers[] = {bufferManager.getVertexBuffers().getBuffer()};
-    VkDeviceSize offsets[] = {0};
-
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getOpaquePipeline());
-    vkCmdBindVertexBuffers(command, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(command, bufferManager.getIndexBuffers().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
     vkCmdBindDescriptorSets(
         command,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -374,25 +369,29 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
         nullptr
     );
 
-    vkCmdDrawIndexedIndirect(
-        command,
-        bufferManager.getAllocator().getIndirectBuffer().getBuffer(),
-        0,
-        bufferManager.getAllocator().getIndirectCount(),
-        sizeof(DrawIndirectCommand)
-    );
+    for (const AllocationPage& page : bufferManager.getAllocator().getPages()) {
+        const uint32_t indirectCount = page.indirectAllocator.getCommittedBlockCount();
+        if (indirectCount == 0) continue;
+
+        const Buffer& vertexBuffer = bufferManager.getManagedBuffer(page.vertexAllocator.getBufferId());
+        const Buffer& indexBuffer = bufferManager.getManagedBuffer(page.indexAllocator.getBufferId());
+        const Buffer& indirectBuffer = bufferManager.getManagedBuffer(page.indirectAllocator.getBufferId());
+
+        VkBuffer vertexBuffers[] = {vertexBuffer.getBuffer()};
+        VkDeviceSize offsets[] = {0};
+
+        vkCmdBindVertexBuffers(command, 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(command, indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexedIndirect(
+            command,
+            indirectBuffer.getBuffer(),
+            0,
+            indirectCount,
+            sizeof(DrawIndirectCommand)
+        );
+    }
 
     vkCmdBindPipeline(command, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicPipeline.getTransparentPipeline());
-    VkDeviceSize offset = 0;
-
-    vkCmdBindVertexBuffers(
-        command,
-        0,
-        1,
-        &bufferManager.getTransparentVertexBuffers().getBuffer(),
-        &offset
-    );
-    vkCmdBindIndexBuffer(command, bufferManager.getTransparentIndexBuffers().getBuffer(), 0, VK_INDEX_TYPE_UINT32);
     vkCmdBindDescriptorSets(
         command,
         VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -404,13 +403,33 @@ void VulkanApp::recordCommandBuffer(uint32_t imageIndex) {
         nullptr
     );
 
-    vkCmdDrawIndexedIndirect(
-        command,
-        bufferManager.getTransparentAllocator().getIndirectBuffer().getBuffer(),
-        0,
-        bufferManager.getTransparentAllocator().getIndirectCount(),
-        sizeof(DrawIndirectCommand)
-    );
+    for (const AllocationPage& page : bufferManager.getTransparentAllocator().getPages()) {
+        const uint32_t indirectCount = page.indirectAllocator.getCommittedBlockCount();
+        if (indirectCount == 0) continue;
+
+        const Buffer& vertexBuffer = bufferManager.getManagedBuffer(page.vertexAllocator.getBufferId());
+        const Buffer& indexBuffer = bufferManager.getManagedBuffer(page.indexAllocator.getBufferId());
+        const Buffer& indirectBuffer = bufferManager.getManagedBuffer(page.indirectAllocator.getBufferId());
+
+        VkDeviceSize offset = 0;
+        VkBuffer vertexBufferHandle = vertexBuffer.getBuffer();
+
+        vkCmdBindVertexBuffers(
+            command,
+            0,
+            1,
+            &vertexBufferHandle,
+            &offset
+        );
+        vkCmdBindIndexBuffer(command, indexBuffer.getBuffer(), 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexedIndirect(
+            command,
+            indirectBuffer.getBuffer(),
+            0,
+            indirectCount,
+            sizeof(DrawIndirectCommand)
+        );
+    }
 
     vkCmdEndRenderPass(command);
 

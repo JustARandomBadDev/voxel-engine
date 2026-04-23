@@ -4,8 +4,8 @@
 #include <stdexcept>
 #include <string.h>
 
-#include "graphics/renderer.h"
 #include "graphics/device.h"
+#include "graphics/renderer.h"
 
 void BufferManager::ensureConfigured(const char* p_caller) const {
     if (_configured && _device != nullptr && _renderer != nullptr) return;
@@ -16,17 +16,68 @@ void BufferManager::ensureConfigured(const char* p_caller) const {
     throw std::runtime_error(oss.str());
 }
 
+void BufferManager::ensureValidManagedBufferId(uint32_t p_buffer_id, const char* p_caller) const {
+    if (p_buffer_id < _managed_buffers.size()) return;
+
+    std::ostringstream oss;
+    oss << "BufferManager::" << p_caller
+        << " -> invalid managed buffer id: " << p_buffer_id;
+    throw std::runtime_error(oss.str());
+}
+
 void BufferManager::configure(Device& p_device, Renderer& p_renderer) {
     _device = &p_device;
     _renderer = &p_renderer;
     _configured = true;
 }
 
+uint32_t BufferManager::createManagedBuffer(VkDeviceSize p_size, VkBufferUsageFlags p_usage, VkMemoryPropertyFlags p_properties) {
+    ensureConfigured("createManagedBuffer()");
+
+    Buffer buffer;
+    buffer.createBuffer(p_size, p_usage, p_properties, *_device);
+    _managed_buffers.push_back(std::move(buffer));
+    return static_cast<uint32_t>(_managed_buffers.size() - 1);
+}
+
+Buffer& BufferManager::getManagedBuffer(uint32_t p_buffer_id) {
+    ensureConfigured("getManagedBuffer()");
+    ensureValidManagedBufferId(p_buffer_id, "getManagedBuffer()");
+    return _managed_buffers[p_buffer_id];
+}
+
+const Buffer& BufferManager::getManagedBuffer(uint32_t p_buffer_id) const {
+    ensureConfigured("getManagedBuffer() const");
+    ensureValidManagedBufferId(p_buffer_id, "getManagedBuffer() const");
+    return _managed_buffers[p_buffer_id];
+}
+
 void BufferManager::createBuffers(const GpuAllocatorConfig& p_gpu_allocator_config) {
     ensureConfigured("createBuffers()");
 
-    _opaque_allocator.init(*_device, p_gpu_allocator_config);
-    _transparent_allocator.init(*_device, p_gpu_allocator_config);
+    _opaque_allocator.cleanup();
+    _transparent_allocator.cleanup();
+
+    for (Buffer& buffer : _managed_buffers) {
+        buffer.cleanup();
+    }
+
+    if (_staging.getBuffer() != VK_NULL_HANDLE) {
+        _staging.cleanup();
+    }
+
+    _managed_buffers.clear();
+    _pending_uploads.clear();
+
+    _staging.createBuffer(
+        p_gpu_allocator_config.stagingBufferBytes,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        *_device
+    );
+
+    _opaque_allocator.init(*this, p_gpu_allocator_config);
+    _transparent_allocator.init(*this, p_gpu_allocator_config);
 }
 
 void BufferManager::createUniformBuffers(uint32_t p_frames_in_flight) {
@@ -47,46 +98,122 @@ void BufferManager::updateUniformBuffer(uint32_t p_current_frame, glm::vec3 camP
     uniformBuffers.at(p_current_frame).updateUniformBuffer(camPos, matrix, sunPos, moonPos);
 }
 
+void BufferManager::enqueueUpload(uint32_t p_dst_buffer_id, VkDeviceSize p_dst_offset, const void* p_data, VkDeviceSize p_size) {
+    ensureConfigured("enqueueUpload()");
+    ensureValidManagedBufferId(p_dst_buffer_id, "enqueueUpload()");
+
+    if (p_data == nullptr) {
+        throw std::runtime_error("BufferManager::enqueueUpload() -> source data pointer must not be null");
+    }
+
+    if (p_size == 0) return;
+
+    const Buffer& dstBuffer = _managed_buffers[p_dst_buffer_id];
+    if (p_dst_offset + p_size > dstBuffer.getSize()) {
+        std::ostringstream oss;
+        oss << "BufferManager::enqueueUpload() -> destination buffer overflow: "
+            << "bufferId=" << p_dst_buffer_id
+            << ", dstOffset=" << p_dst_offset
+            << " bytes, size=" << p_size
+            << " bytes, bufferCapacity=" << dstBuffer.getSize()
+            << " bytes";
+        throw std::runtime_error(oss.str());
+    }
+
+    if (p_size > _staging.getSize()) {
+        std::ostringstream oss;
+        oss << "BufferManager::enqueueUpload() -> upload too large for staging buffer: "
+            << "requested=" << p_size
+            << " bytes, stagingCapacity=" << _staging.getSize()
+            << " bytes";
+        throw std::runtime_error(oss.str());
+    }
+
+    PendingUpload upload;
+    upload.dstBufferId = p_dst_buffer_id;
+    upload.dstOffset = p_dst_offset;
+    upload.data.resize(static_cast<size_t>(p_size));
+    memcpy(upload.data.data(), p_data, static_cast<size_t>(p_size));
+    _pending_uploads.push_back(std::move(upload));
+}
+
 void BufferManager::applyCopies() {
-    if (_pending_copies.empty()) return;
+    if (_pending_uploads.empty()) return;
 
     ensureConfigured("applyCopies()");
 
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    while (!_pending_uploads.empty()) {
+        VkCommandBufferBeginInfo beginInfo{};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    if (vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo) != VK_SUCCESS) {
-        throw std::runtime_error("BufferManager::applyCopies() -> failed to begin copy command buffer recording");
+        if (vkBeginCommandBuffer(_renderer->getCopyCommandBuffer(), &beginInfo) != VK_SUCCESS) {
+            throw std::runtime_error("BufferManager::applyCopies() -> failed to begin copy command buffer recording");
+        }
+
+        VkDeviceSize stagingOffset = 0;
+        size_t processedUploads = 0;
+
+        for (const PendingUpload& upload : _pending_uploads) {
+            const VkDeviceSize uploadSize = static_cast<VkDeviceSize>(upload.data.size());
+            if (stagingOffset + uploadSize > _staging.getSize()) {
+                break;
+            }
+
+            void* mappedData = nullptr;
+            const VkResult mapResult = vkMapMemory(
+                _device->getDevice(),
+                _staging.getBufferMemory(),
+                stagingOffset,
+                uploadSize,
+                0,
+                &mappedData
+            );
+
+            if (mapResult != VK_SUCCESS) {
+                throw std::runtime_error("BufferManager::applyCopies() -> failed to map staging buffer memory");
+            }
+
+            memcpy(mappedData, upload.data.data(), static_cast<size_t>(uploadSize));
+            vkUnmapMemory(_device->getDevice(), _staging.getBufferMemory());
+
+            VkBufferCopy copyRegion{};
+            copyRegion.size = uploadSize;
+            copyRegion.srcOffset = stagingOffset;
+            copyRegion.dstOffset = upload.dstOffset;
+            vkCmdCopyBuffer(
+                _renderer->getCopyCommandBuffer(),
+                _staging.getBuffer(),
+                getManagedBuffer(upload.dstBufferId).getBuffer(),
+                1,
+                &copyRegion
+            );
+
+            stagingOffset += uploadSize;
+            processedUploads++;
+        }
+
+        if (processedUploads == 0) {
+            throw std::runtime_error("BufferManager::applyCopies() -> no pending upload fit in staging buffer");
+        }
+
+        if (vkEndCommandBuffer(_renderer->getCopyCommandBuffer()) != VK_SUCCESS) {
+            throw std::runtime_error("BufferManager::applyCopies() -> failed to end copy command buffer recording");
+        }
+
+        VkSubmitInfo submitInfo{};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &_renderer->getCopyCommandBuffer();
+
+        if (vkQueueSubmit(_device->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+            throw std::runtime_error("BufferManager::applyCopies() -> failed to submit copy command buffer");
+        }
+
+        vkQueueWaitIdle(_device->getGraphicsQueue());
+        _renderer->resetCopyCommandBuffer();
+        _pending_uploads.erase(_pending_uploads.begin(), _pending_uploads.begin() + static_cast<long>(processedUploads));
     }
-
-    for (CopyInfo infos : _pending_copies) {
-        VkBufferCopy copyRegion {};
-        copyRegion.size = infos.size;
-        copyRegion.srcOffset = infos.srcOffset;
-        copyRegion.dstOffset = infos.dstOffset;
-        vkCmdCopyBuffer(_renderer->getCopyCommandBuffer(), infos.srcBuffer, infos.dstBuffer, 1, &copyRegion);
-    }
-
-    _pending_copies.clear();
-
-    if (vkEndCommandBuffer(_renderer->getCopyCommandBuffer()) != VK_SUCCESS) {
-        throw std::runtime_error("BufferManager::applyCopies() -> failed to end copy command buffer recording");
-    }
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &_renderer->getCopyCommandBuffer();
-
-    if (vkQueueSubmit(_device->getGraphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
-        throw std::runtime_error("BufferManager::applyCopies() -> failed to submit copy command buffer");
-    }
-    vkQueueWaitIdle(_device->getGraphicsQueue());
-
-    _renderer->resetCopyCommandBuffer();
-    _opaque_allocator.resetStagingOffset();
-    _transparent_allocator.resetStagingOffset();
 }
 
 void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, Device& p_device) {
@@ -130,24 +257,6 @@ void BufferManager::createImage(uint32_t width, uint32_t height, VkFormat format
     if (vkBindImageMemory(p_device.getDevice(), image, imageMemory, 0) != VK_SUCCESS) {
         throw std::runtime_error("BufferManager::createImage() -> failed to bind image memory");
     }
-}
-
-void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size) {
-    copyBuffer(srcBuffer, dstBuffer, size, 0, 0);
-}
-
-void BufferManager::copyBuffer(Buffer& srcBuffer, Buffer& dstBuffer, VkDeviceSize size, VkDeviceSize srcOffset, VkDeviceSize dstOffset) {
-    if (size <= 0 || size+dstOffset > dstBuffer.getSize() || size+srcOffset > srcBuffer.getSize()) {
-        throw std::runtime_error("BufferManager::copyBuffer() -> GPU buffer overflow !");
-    }
-    
-    _pending_copies.push_back({
-        srcBuffer.getBuffer(),
-        dstBuffer.getBuffer(),
-        size,
-        srcOffset,
-        dstOffset
-    });
 }
 
 VkCommandBuffer BufferManager::beginSingleTimeCommands(Renderer& p_renderer, Device& p_device) {
@@ -205,9 +314,16 @@ uint32_t BufferManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlag
 }
 
 void BufferManager::cleanupBuffers() {
-    _pending_copies.clear();
+    _pending_uploads.clear();
     _opaque_allocator.cleanup();
     _transparent_allocator.cleanup();
+
+    for (Buffer& buffer : _managed_buffers) {
+        buffer.cleanup();
+    }
+    _managed_buffers.clear();
+
+    _staging.cleanup();
 }
 
 void BufferManager::cleanupUniformBuffer() {
