@@ -15,12 +15,15 @@ public:
     void addVoxel(glm::ivec3 p_pos, Voxel p_voxel);
     void removeVoxel(glm::ivec3 p_pos) { addVoxel(p_pos, Voxel(0)); };
 
-    glm::ivec3 getPos() const                { return _pos; }
+    glm::ivec3 getPos() const { return _pos; }
+
     Voxel      getVoxel(int x, int y, int z) { return _voxels[x][y][z]; }
     Voxel      getVoxel(int x, int y, int z) const { return _voxels[x][y][z]; }
-    bool       isDirty() const               { return _is_modify; }
-    void       markDirty()                   { _is_modify = true; }
-    void       clearDirty()                  { _is_modify = false; }
+
+    bool       needsRenderSync() const { return _is_modify; }
+    void       markRenderSyncDirty() { _is_modify = true; }
+    void       clearRenderSyncDirty() { _is_modify = false; }
+    
     Voxel (&getVoxels()) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] { return _voxels; }
     const Voxel (&getVoxels() const) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE] { return _voxels; }
     

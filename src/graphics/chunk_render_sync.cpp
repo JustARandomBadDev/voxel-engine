@@ -20,11 +20,11 @@ void ChunkRenderSync::syncChunk(
         p_chunk.getPos(),
         mesh_builder->getOpaqueMesh(),
         mesh_builder->getTransparentMesh(),
-        p_chunk.isDirty(),
+        p_chunk.needsRenderSync(),
         p_camera_pos,
         p_buffer_manager
     );
-    p_chunk.clearDirty();
+    p_chunk.clearRenderSyncDirty();
 }
 
 void ChunkRenderSync::syncAll(

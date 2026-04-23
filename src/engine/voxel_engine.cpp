@@ -30,7 +30,7 @@ public:
 
     void markChunkDirtyIfLoaded(glm::ivec3 chunk_pos) {
         Chunk* chunk = chunk_manager.getChunk(chunk_pos);
-        if (chunk) chunk->markDirty();
+        if (chunk) chunk->markRenderSyncDirty();
     }
 
     void markNeighborChunksDirty(glm::ivec3 chunk_pos, glm::ivec3 local_voxel_pos) {
