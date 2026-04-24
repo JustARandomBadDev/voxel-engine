@@ -2,21 +2,21 @@
 #define ENGINE_MESH_H
 
 #include <vector>
-#include <memory>
 #include <glm/glm.hpp>
 
-#include "core/config.h"
-#include "world/voxel.h"
 #include "graphics/vertex.h"
 #include "engine/face_position.h"
 #include "engine/texture_data.h"
 
+// One quad worth of geometry, with optional sort metadata used by transparent mesh handling.
 struct FaceData {
     Vertex vertex[4];
     float distance;
     glm::vec3 center;
 };
 
+// CPU-side vertex/index data for one chunk mesh stream.
+// This type owns no GPU resources.
 class Mesh {
 public:
     void add(FaceData p_face);
@@ -24,9 +24,9 @@ public:
     
     void clear();
 
-    std::vector<Vertex>&   getVertex() { return _vertex; }
-    std::vector<uint32_t>& getIndex()  { return _index; }
-    virtual bool isEmpty()  { return (! _vertex.size()); }
+    const std::vector<Vertex>&   getVertex() const { return _vertex; }
+    const std::vector<uint32_t>& getIndex()  const { return _index; }
+    bool isEmpty() const { return (! _vertex.size()); }
 
 private:
     std::vector<Vertex> _vertex;

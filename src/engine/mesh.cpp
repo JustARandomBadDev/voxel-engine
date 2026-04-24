@@ -1,12 +1,5 @@
 #include "engine/mesh.h"
 
-#include <iostream>
-
-#include "graphics/buffer_manager.h"
-#include "engine/voxel_data.h"
-#include "world/chunk.h"
-#include "world/chunk_manager.h"
-
 void Mesh::add(FaceData p_face) {
     addIndex();
 
@@ -18,6 +11,7 @@ void Mesh::add(FaceData p_face) {
     });
 }
 
+// Expands one voxel face into four world-space vertices using the supplied face corners and UVs.
 void Mesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, FaceTextureData p_uv, float p_shininess) {
     addIndex();
 
@@ -29,6 +23,7 @@ void Mesh::add(glm::vec3 p_pos, FacePosition p_face_pos, glm::vec3 p_normal, Fac
     );
 }
 
+// Each face contributes four vertices and two triangles using a fixed index pattern.
 void Mesh::addIndex() {
     uint32_t index_offset = _vertex.size();
 

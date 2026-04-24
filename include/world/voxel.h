@@ -3,14 +3,14 @@
 
 #include <cstdint>
 
+// id == 0 represents empty space. Non-zero ids refer to engine-side voxel/material data tables.
 struct Voxel {
     uint16_t id = 0;
-    bool transparent = false;
 
     Voxel() = default;
 
     Voxel(uint16_t pid)
-    : id(pid), transparent(false) {}
+    : id(pid) {}
 };
 
 #endif

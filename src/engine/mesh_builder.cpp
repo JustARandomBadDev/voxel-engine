@@ -1,10 +1,11 @@
 #include "engine/mesh_builder.h"
 
 #include "engine/voxel_data.h"
-#include "engine/voxel_direction.h"
 #include "world/chunk.h"
 #include "world/chunk_manager.h"
 
+// Encodes face visibility against local neighbors, adjacent chunks, and transparency rules.
+// Faces remain visible against empty space, missing adjacent chunks, and transparent neighbors of opaque voxels.
 bool MeshBuilder::shouldRender(
     int nx, int ny, int nz,
     const Chunk* neighborChunk,
@@ -25,6 +26,7 @@ bool MeshBuilder::shouldRender(
     }
     else if (neighborChunk)
     {
+        // Out-of-range local coordinates are remapped back into the adjacent chunk's local [0, CHUNK_SIZE) space.
         const Voxel n_voxel = neighborChunk->getVoxel({(nx + CHUNK_SIZE) % CHUNK_SIZE,
                                                         (ny + CHUNK_SIZE) % CHUNK_SIZE,
                                                         (nz + CHUNK_SIZE) % CHUNK_SIZE});
@@ -37,11 +39,16 @@ bool MeshBuilder::shouldRender(
     return true;
 }
 
+// Rebuilds the opaque and transparent CPU meshes for one chunk from scratch.
+// Neighboring chunks are consulted only for face visibility decisions across chunk boundaries.
 void MeshBuilder::buildMeshes(
     Voxel (& p_voxels) [CHUNK_SIZE][CHUNK_SIZE][CHUNK_SIZE],
     glm::ivec3 p_chunk_pos,
     ChunkManager& p_chunk_manager
 ) {
+    _transparent_mesh.clear();
+    _opaque_mesh.clear();
+
     const Chunk* cxp = p_chunk_manager.getChunk({p_chunk_pos.x+1, p_chunk_pos.y,   p_chunk_pos.z});
     const Chunk* cxm = p_chunk_manager.getChunk({p_chunk_pos.x-1, p_chunk_pos.y,   p_chunk_pos.z});
     const Chunk* cyp = p_chunk_manager.getChunk({p_chunk_pos.x,   p_chunk_pos.y+1, p_chunk_pos.z});

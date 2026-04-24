@@ -2,73 +2,70 @@
 #define VULKAN_ALLOCATORS_MANAGER_H
 
 #include <cstdint>
-#include <vector>
-#include <memory>
-#include <glm/glm.hpp>
 #include <unordered_map>
+#include <vector>
 
-#include "graphics/buffer.h"
-#include "graphics/vertex.h"
-#include "graphics/allocator.h"
 #include "engine/mesh.h"
+#include "engine/voxel_engine_config.h"
+#include "graphics/allocator.h"
 
 class BufferManager;
-class Device;
 
-const uint32_t NB_VERTEX_PER_BLOCK = 4;
-const uint32_t NB_INDEX_PER_BLOCK = 6;
+constexpr uint32_t NB_VERTEX_PER_BLOCK = 4;
+constexpr uint32_t NB_INDEX_PER_BLOCK = 6;
 
 struct DrawIndirectCommand {
-    uint32_t indexCount;    // Nombre d'indices à dessiner
-    uint32_t instanceCount; // Toujours 1 pour du voxel
-    uint32_t indexOffset;   // Offset dans l’index buffer
-    uint32_t vertexOffset;  // Offset dans le vertex buffer
-    uint32_t firstInstance; // Toujours 0 dans ce cas
+    uint32_t indexCount;
+    uint32_t instanceCount;
+    uint32_t indexOffset;
+    uint32_t vertexOffset;
+    uint32_t firstInstance;
 };
 
-struct AllocInfo {
-    uint32_t dataBlock;
-    uint32_t maxDataBlock;
-    uint32_t indirectBlock;
+// One page owns parallel vertex/index/indirect allocators backed by one set of managed buffers.
+struct AllocationPage {
+    Allocator vertexAllocator;
+    Allocator indexAllocator;
+    Allocator indirectAllocator;
 };
 
+// Stores the page and buffer allocations currently associated with one logical mesh id.
+struct MeshAllocInfo {
+    uint32_t pageIndex = 0;
+    BufferAllocation vertex;
+    BufferAllocation index;
+    BufferAllocation indirect;
+};
+
+// Maps persistent logical mesh allocation ids to allocator-managed regions inside page-based GPU buffers and queues uploads to populate them.
 class AllocatorManager {
 public:
-    void init(Device& p_device);
+    void init(BufferManager& p_buffer_manager, const GpuAllocatorConfig& p_config);
     int  allocMesh(Mesh& mesh, int pid, BufferManager& p_buffer_manager);
-    void freeMesh(int pid);
-    void resetStagingOffset() { _stagingOffset = 0; };
-
+    void freeMesh(int pid, BufferManager& p_buffer_manager);
     void cleanup();
 
-    Buffer& getVertexBuffer()   { return _vertexAllocator.getBuffer(); }
-    Buffer& getIndexBuffer()    { return _indexAllocator.getBuffer(); }
-    Buffer& getIndirectBuffer() { return _indirectAllocator.getBuffer(); }
-    
-    uint32_t     getVertexCount()    { return _nbDataBlock * NB_VERTEX_PER_BLOCK; }
-    uint32_t     getIndexCount()     { return _nbDataBlock * NB_INDEX_PER_BLOCK; }
-    uint32_t     getIndirectCount()  { return _nbIndirectBlock; }
+    const std::vector<AllocationPage>& getPages() const { return _pages; }
+    uint32_t getIndirectCount() const;
 
 private:
-    Allocator _vertexAllocator;
-    Allocator _indexAllocator;
-    Allocator _indirectAllocator;
-    Buffer _staging;
-
-    uint32_t _nbDataBlock;
-    uint32_t _nbIndirectBlock;
-
-    uint32_t _id;
-
-    uint32_t _stagingOffset;
-
-    std::unordered_map<uint32_t, AllocInfo> _used;
-    std::vector<AllocInfo> _freeList;
+    std::vector<AllocationPage> _pages;
+    std::unordered_map<uint32_t, MeshAllocInfo> _used;
     std::vector<int> _freeId;
 
-    int availableAlloc(uint32_t p_nbBlock);
-    void newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, AllocInfo& p_infos, int p_id);
-    void freeIndirectBlock(uint32_t p_offset);
+    uint32_t _next_id = 0;
+    uint32_t _mesh_capacity_blocks = 0;
+    uint32_t _indirect_capacity_blocks = 0;
+    uint32_t _allocation_margin_blocks = 1;
+
+    uint32_t createPage(BufferManager& p_buffer_manager);
+    uint32_t findOrCreatePage(uint32_t p_data_reserved_blocks, BufferManager& p_buffer_manager);
+    void queueMeshUpload(
+        Mesh& p_mesh,
+        const MeshAllocInfo& p_infos,
+        BufferManager& p_buffer_manager
+    );
+    void queueZeroIndirect(const MeshAllocInfo& p_infos, BufferManager& p_buffer_manager);
 };
 
 #endif

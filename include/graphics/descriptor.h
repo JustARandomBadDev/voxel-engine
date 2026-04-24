@@ -6,24 +6,22 @@
 #include <vector>
 
 class BufferManager;
-class ComputePipeline;
 class Device;
 class GraphicPipeline;
 class Texture;
 
+// Owns the graphics descriptor pool and one descriptor set per swapchain image.
 class Descriptor {
 public:
-    void createDescriptorPool(Device& p_device, uint32_t p_frames_in_flight);
-    void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, ComputePipeline& p_compute_pipeline, Device& p_device, uint32_t p_frames_in_flight);
+    void createDescriptorPool(Device& p_device, uint32_t p_image_count);
+    void createDescriptorSets(BufferManager& p_buffer_manager, Texture& p_texture, GraphicPipeline& p_graphic_pipeline, Device& p_device, uint32_t p_image_count);
     void cleanup(Device& p_device);
 
-    const std::vector<VkDescriptorSet>& getDescriptorSets() { return descriptorSets; }
-    const VkDescriptorSet& getComputeDescriptorSets(uint32_t p_current_frame) { return computeDescriptorSets[p_current_frame]; }
+    const std::vector<VkDescriptorSet>& getDescriptorSets() const { return descriptorSets; }
 
 private:
-    VkDescriptorPool descriptorPool;
+    VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     std::vector<VkDescriptorSet> descriptorSets;
-    std::vector<VkDescriptorSet> computeDescriptorSets;
 };
 
 #endif // DESCRIPTOR_MANAGER_H

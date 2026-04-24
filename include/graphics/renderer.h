@@ -9,60 +9,51 @@ class GraphicPipeline;
 class Instance;
 class Swapchain;
 
+// Owns frame-execution resources: command pool, per-image command buffers, copy command buffer, and sync objects.
 class Renderer {
 public:
     void createCommandPool(Device& p_device, Instance& p_instance);
-    void createCommandBuffers(Device& p_device, uint32_t p_frames_in_flight);
-    void createComputeCommandPool(uint32_t computeQueueFamily);
-    void createComputeCommandBuffers(Device& p_device, uint32_t p_frames_in_flight);
-    void createSyncObjects(Device& p_device, uint32_t p_frames_in_flight);
-    void createFramebuffers(GraphicPipeline& p_graphic_pipeline, Swapchain& p_swapchain, Device& p_device);
-    void resetCommandBuffers();
+    void createCommandBuffers(Device& p_device, uint32_t p_image_count);
+    void createSyncObjects(Device& p_device, uint32_t p_frames_in_flight, uint32_t p_image_count);
+    void invalidateAllCommandBuffers();
     void resetCopyCommandBuffer();
     void cleanup(Device& p_device);
 
-    const VkCommandPool& getCommandPool() { return commandPool; }
+    const VkCommandPool& getCommandPool() const { return commandPool; }
 
-    const VkCommandBuffer& getCurrentCommandBuffers() { return commandBuffers[currentFrame]; }
-    const VkCommandBuffer& getCommandBuffer(int index) { return commandBuffers[index]; }
+    const VkCommandBuffer& getCommandBuffer(uint32_t imageIndex) const { return commandBuffers[imageIndex]; }
 
-    const bool getCurrentCommandBuffersState() const { return commandBufferState[currentFrame]; }
-    const void setCurrentCommandBuffersState(bool p_state) { commandBufferState[currentFrame] = p_state; }
+    bool isCommandBufferDirty(uint32_t imageIndex) const { return commandBufferDirty[imageIndex]; }
+    void setCommandBufferDirty(uint32_t imageIndex, bool p_dirty) { commandBufferDirty[imageIndex] = p_dirty; }
 
-    const VkCommandBuffer& getCurrentComputeCommandBuffers() { return computeCommandBuffers[currentFrame]; }
-    const std::vector<VkFence>& getInFlightFences() { return inFlightFences; }
-    const std::vector<VkFence>& getComputeInFlightFences() { return computeInFlightFences; }
+    const std::vector<VkFence>& getInFlightFences() const { return inFlightFences; }
 
-    const uint32_t& getCurrentFrame() { return currentFrame; }
-    const VkFence& getCurrentInFlightFences() { return inFlightFences[currentFrame]; }
-    const VkFence& getCurrentComputeInFlightFences() { return computeInFlightFences[currentFrame]; }
+    uint32_t getCurrentFrame() const { return currentFrame; }
+    uint32_t getFramesInFlight() const { return framesInFlight; }
+    uint32_t getSwapchainImageCount() const { return swapchainImageCount; }
+    const VkFence& getCurrentInFlightFences() const { return inFlightFences[currentFrame]; }
 
-    const VkSemaphore& getCurrentImageAvailableSemaphores() { return imageAvailableSemaphores[currentFrame]; }
-    const VkSemaphore& getCurrentRenderFinishedSemaphores() { return renderFinishedSemaphores[currentFrame]; }
-    const VkSemaphore& getCurrentComputeFinishedSemaphores() { return computeFinishedSemaphores[currentFrame]; }
+    const VkSemaphore& getCurrentImageAvailableSemaphores() const { return imageAvailableSemaphores[currentFrame]; }
+    const VkSemaphore& getRenderFinishedSemaphore(uint32_t imageIndex) const { return renderFinishedSemaphores[imageIndex]; }
 
-    const VkCommandBuffer& getCopyCommandBuffer() { return copyCommandBuffer; };
+    const VkCommandBuffer& getCopyCommandBuffer() const { return copyCommandBuffer; }
 
     void incrementeCurrentFrame();
 
 private:
-    VkCommandPool commandPool;
+    VkCommandPool commandPool = VK_NULL_HANDLE;
     
     std::vector<VkCommandBuffer> commandBuffers;
-    std::vector<bool> commandBufferState;
+    std::vector<bool> commandBufferDirty;
 
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
 
-    std::vector<VkCommandBuffer> computeCommandBuffers;
-
-    std::vector<VkSemaphore> computeFinishedSemaphores;
-    std::vector<VkFence> computeInFlightFences;
-
-    VkCommandBuffer copyCommandBuffer;
+    VkCommandBuffer copyCommandBuffer = VK_NULL_HANDLE;
 
     uint32_t framesInFlight = 0;
+    uint32_t swapchainImageCount = 0;
     uint32_t currentFrame = 0;
 };
 

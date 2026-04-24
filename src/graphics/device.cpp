@@ -1,6 +1,5 @@
 #include "graphics/device.h"
 
-#include <iostream>
 #include <set>
 
 #include "graphics/instance.h"
@@ -11,12 +10,13 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
+// Device selection requires queue-family support, swapchain support, required extensions, and multiDrawIndirect.
 void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(p_instance.getInstance(), &deviceCount, nullptr);
 
     if (deviceCount == 0) {
-        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+        throw std::runtime_error("Device::pickPhysicalDevice() -> no Vulkan-capable physical device found");
     }
 
     std::vector<VkPhysicalDevice> devices(deviceCount);
@@ -30,11 +30,17 @@ void Device::pickPhysicalDevice(Instance& p_instance, Swapchain& p_swapchain) {
     }
 
     if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("failed to find a suitable GPU!");
+        throw std::runtime_error("Device::pickPhysicalDevice() -> failed to find a suitable physical device");
     }
 }
 
+// The runtime requires a graphics+compute-capable family and a present-capable family,
+// creating one logical queue per unique required family.
 void Device::createLogicalDevice(Instance& p_instance) {
+    if (physicalDevice == VK_NULL_HANDLE) {
+        throw std::runtime_error("Device::createLogicalDevice() -> physical device is not initialized");
+    }
+
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice, p_instance);
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -51,7 +57,6 @@ void Device::createLogicalDevice(Instance& p_instance) {
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.samplerAnisotropy = VK_TRUE;
     deviceFeatures.multiDrawIndirect = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
@@ -66,26 +71,47 @@ void Device::createLogicalDevice(Instance& p_instance) {
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
+        throw std::runtime_error("Device::createLogicalDevice() -> failed to create logical device");
     }
 
     vkGetDeviceQueue(device, indices.graphicsAndComputeFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.graphicsAndComputeFamily.value(), 0, &computeQueue);
     vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
 }
 
-void Device::createDepthResources(Swapchain& p_swapchain) {
+// Depth image, memory, and view are device-owned but recreated for the current swapchain extent/render targets.
+void Device::recreateDepthResources(Swapchain& p_swapchain) {
     VkFormat depthFormat = findDepthFormat();
 
     BufferManager::createImage(p_swapchain.getSwapChainExtent().width, p_swapchain.getSwapChainExtent().height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, *this);
     depthImageView = p_swapchain.createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, *this);
 }
 
+// This releases only swapchain-dependent depth resources and may run across swapchain recreates.
+void Device::cleanupDepthResources() {
+    if (device == VK_NULL_HANDLE) return;
+
+    if (depthImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(device, depthImageView, nullptr);
+    }
+
+    if (depthImage != VK_NULL_HANDLE) {
+        vkDestroyImage(device, depthImage, nullptr);
+    }
+
+    if (depthImageMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(device, depthImageMemory, nullptr);
+    }
+
+    depthImageView = VK_NULL_HANDLE;
+    depthImage = VK_NULL_HANDLE;
+    depthImageMemory = VK_NULL_HANDLE;
+}
+
 void Device::cleanup() {
     vkDestroyDevice(device, nullptr);
 }
 
-bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) {
+bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Swapchain& p_swapchain) const {
     QueueFamilyIndices indices = findQueueFamilies(pdevice, p_instance);
 
     bool extensionsSupported = checkDeviceExtensionSupport(pdevice);
@@ -99,10 +125,11 @@ bool Device::isDeviceSuitable(VkPhysicalDevice pdevice, Instance& p_instance, Sw
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(pdevice, &supportedFeatures);
 
-    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.samplerAnisotropy && supportedFeatures.multiDrawIndirect;
+    return indices.isComplete() && extensionsSupported && swapChainAdequate && supportedFeatures.multiDrawIndirect;
 }
 
-QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) {
+// The renderer expects one combined graphics+compute family plus a present-capable family.
+QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance& p_instance) const {
     QueueFamilyIndices indices;
 
     uint32_t queueFamilyCount = 0;
@@ -134,7 +161,7 @@ QueueFamilyIndices Device::findQueueFamilies(VkPhysicalDevice pdevice, Instance&
     return indices;
 }
 
-bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) {
+bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) const {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(pdevice, nullptr, &extensionCount, nullptr);
 
@@ -150,7 +177,7 @@ bool Device::checkDeviceExtensionSupport(VkPhysicalDevice pdevice) {
     return requiredExtensions.empty();
 }
 
-VkFormat Device::findDepthFormat() {
+VkFormat Device::findDepthFormat() const {
     return findSupportedFormat(
     {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
         VK_IMAGE_TILING_OPTIMAL,
@@ -158,7 +185,7 @@ VkFormat Device::findDepthFormat() {
     );
 }
 
-VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const {
     for (VkFormat format : candidates) {
         VkFormatProperties props;
         vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
@@ -170,5 +197,5 @@ VkFormat Device::findSupportedFormat(const std::vector<VkFormat>& candidates, Vk
         }
     }
 
-    throw std::runtime_error("failed to find supported format!");
+    throw std::runtime_error("Device::findSupportedFormat() -> failed to find a supported depth format");
 }

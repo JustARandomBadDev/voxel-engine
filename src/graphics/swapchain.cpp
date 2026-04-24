@@ -1,37 +1,44 @@
 #include "graphics/swapchain.h"
 
+#include <array>
 #include <algorithm>
 #include <limits>
-#include <iostream>
 
-#include "core/config.h"
 #include "graphics/device.h"
 #include "graphics/graphic_pipeline.h"
 #include "graphics/instance.h"
-#include "graphics/renderer.h"
 
-void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device) {
+namespace {
+constexpr VkPresentModeKHR kPreferredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+constexpr VkPresentModeKHR kFallbackPresentMode = VK_PRESENT_MODE_FIFO_KHR;
+}
+
+// Request enough images to sustain the configured frames-in-flight while respecting surface limits.
+void Swapchain::createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight) {
     SwapChainSupportDetails swapChainSupport = querySwapChainSupport(p_device.getPhysicalDevice(), p_instance);
 
     VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
     VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-    VkExtent2D extent = chooseSwapExtent(window, swapChainSupport.capabilities);
+    VkExtent2D extent = chooseSwapExtent(p_framebuffer_extent, swapChainSupport.capabilities);
 
-    frames_in_flight = swapChainSupport.capabilities.minImageCount+1;
-    if (swapChainSupport.capabilities.maxImageCount > 0 && frames_in_flight > swapChainSupport.capabilities.maxImageCount) {
-        frames_in_flight = swapChainSupport.capabilities.maxImageCount;
+    uint32_t requestedImageCount = std::max(
+        p_frames_in_flight,
+        swapChainSupport.capabilities.minImageCount + 1
+    );
+
+    if (swapChainSupport.capabilities.maxImageCount > 0) {
+        if (p_frames_in_flight > swapChainSupport.capabilities.maxImageCount) {
+            throw std::runtime_error("Swapchain::createSwapChain() -> configured framesInFlight exceeds supported swapchain image count");
+        }
+
+        requestedImageCount = std::min(requestedImageCount, swapChainSupport.capabilities.maxImageCount);
     }
-
-    // std::cout << "Swapchain Capabilities : " << std::endl;
-    // std::cout << "  Max : " << swapChainSupport.capabilities.minImageCount << std::endl;
-    // std::cout << "  Min : " << swapChainSupport.capabilities.maxImageCount << std::endl;
-    // std::cout << "  Current : " << frames_in_flight << std::endl;
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     createInfo.surface = p_instance.getSurface();
 
-    createInfo.minImageCount = frames_in_flight;
+    createInfo.minImageCount = requestedImageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
     createInfo.imageExtent = extent;
@@ -55,33 +62,15 @@ void Swapchain::createSwapChain(GLFWwindow* window, Instance& p_instance, Device
     createInfo.clipped = VK_TRUE;
 
     if (vkCreateSwapchainKHR(p_device.getDevice(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create swap chain!");
+        throw std::runtime_error("Swapchain::createSwapChain() -> failed to create swapchain");
     }
 
-    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &frames_in_flight, nullptr);
-    swapChainImages.resize(frames_in_flight);
-    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &frames_in_flight, swapChainImages.data());
+    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &imageCount, nullptr);
+    swapChainImages.resize(imageCount);
+    vkGetSwapchainImagesKHR(p_device.getDevice(), swapChain, &imageCount, swapChainImages.data());
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
-}
-
-void Swapchain::recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device) {
-    int width = 0, height = 0;
-    glfwGetFramebufferSize(window, &width, &height);
-    while (width == 0 || height == 0) {
-        glfwGetFramebufferSize(window, &width, &height);
-        glfwWaitEvents();
-    }
-
-    vkDeviceWaitIdle(p_device.getDevice());
-
-    cleanup(p_device);
-
-    createSwapChain(window, p_instance, p_device);
-    createImageViews(p_device);
-    p_device.createDepthResources(*this);
-    p_renderer.createFramebuffers(p_graphic_pipeline, *this, p_device);
 }
 
 void Swapchain::createImageViews(Device& p_device) {
@@ -92,26 +81,62 @@ void Swapchain::createImageViews(Device& p_device) {
     }
 }
 
-void Swapchain::cleanup(Device& p_device) {
-    vkDestroyImageView(p_device.getDevice(), p_device.getDepthImageView(), nullptr);
-    vkDestroyImage(p_device.getDevice(), p_device.getDepthImage(), nullptr);
-    vkFreeMemory(p_device.getDevice(), p_device.getDepthImageMemory(), nullptr);
+// Framebuffers combine the current swapchain image views with the current depth attachment, so they are swapchain-dependent.
+void Swapchain::createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& p_device) {
+    swapChainFramebuffers.clear();
+    swapChainFramebuffers.reserve(swapChainImageViews.size());
 
-    for (auto framebuffer : swapChainFramebuffers) {
+    for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+        std::array<VkImageView, 2> attachments = {
+            swapChainImageViews[i],
+            p_device.getDepthImageView()
+        };
+
+        VkFramebufferCreateInfo framebufferInfo{};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = p_graphic_pipeline.getRenderPass();
+        framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+        framebufferInfo.pAttachments = attachments.data();
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        VkFramebuffer framebuffer = VK_NULL_HANDLE;
+        if (vkCreateFramebuffer(p_device.getDevice(), &framebufferInfo, nullptr, &framebuffer) != VK_SUCCESS) {
+            throw std::runtime_error("Swapchain::createFramebuffers() -> failed to create framebuffer");
+        }
+
+        swapChainFramebuffers.push_back(framebuffer);
+    }
+}
+
+// Reusable framebuffer-only cleanup used during swapchain-dependent teardown.
+void Swapchain::cleanupFramebuffers(Device& p_device) {
+    for (VkFramebuffer framebuffer : swapChainFramebuffers) {
         vkDestroyFramebuffer(p_device.getDevice(), framebuffer, nullptr);
     }
+
+    swapChainFramebuffers.clear();
+}
+
+// Destroy swapchain-owned child resources before releasing the swapchain handle itself.
+void Swapchain::cleanup(Device& p_device) {
+    cleanupFramebuffers(p_device);
 
     for (auto imageView : swapChainImageViews) {
         vkDestroyImageView(p_device.getDevice(), imageView, nullptr);
     }
 
     swapChainFramebuffers.clear();
+    swapChainImages.clear();
     swapChainImageViews.clear();
+    imageCount = 0;
 
     vkDestroySwapchainKHR(p_device.getDevice(), swapChain, nullptr);
+    swapChain = VK_NULL_HANDLE;
 }
 
-VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) {
+VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) const {
         VkImageViewCreateInfo viewInfo{};
         viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         viewInfo.image = image;
@@ -125,13 +150,13 @@ VkImageView Swapchain::createImageView(VkImage image, VkFormat format, VkImageAs
 
         VkImageView imageView;
         if (vkCreateImageView(p_device.getDevice(), &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create image view!");
+            throw std::runtime_error("Swapchain::createImageView() -> failed to create swapchain image view");
         }
 
         return imageView;
     }
 
-SwapChainSupportDetails Swapchain::querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) {
+SwapChainSupportDetails Swapchain::querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) const {
     SwapChainSupportDetails details;
 
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pdevice, p_instance.getSurface(), &details.capabilities);
@@ -167,33 +192,24 @@ VkSurfaceFormatKHR Swapchain::chooseSwapSurfaceFormat(const std::vector<VkSurfac
 
 VkPresentModeKHR Swapchain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes) {
     for (const auto& availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+        if (availablePresentMode == kPreferredPresentMode) {
             return availablePresentMode;
         }
     }
 
-    return VK_PRESENT_MODE_FIFO_KHR;
+    return kFallbackPresentMode;
 }
 
-VkExtent2D Swapchain::chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities) {
+// Some platforms provide a fixed surface extent; others require clamping the host framebuffer size to supported limits.
+VkExtent2D Swapchain::chooseSwapExtent(VkExtent2D p_framebuffer_extent, const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
     } else {
-        int width, height;
-        glfwGetFramebufferSize(window, &width, &height);
-
-        VkExtent2D actualExtent = {
-            static_cast<uint32_t>(width),
-            static_cast<uint32_t>(height)
-        };
+        VkExtent2D actualExtent = p_framebuffer_extent;
 
         actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
         return actualExtent;
     }
-}
-
-void Swapchain::addSwapChainFramebuffers(VkFramebuffer pframeBuffer) {
-    swapChainFramebuffers.push_back(pframeBuffer);
 }

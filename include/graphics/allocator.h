@@ -2,43 +2,48 @@
 #define VULKAN_ALLOCATOR_H
 
 #include <cstdint>
+#include <limits>
 #include <vector>
-#include <memory>
-#include <optional>
-#include <glm/glm.hpp>
-#include <unordered_map>
 
-#include "graphics/buffer.h"
-#include "graphics/vertex.h"
-#include "engine/mesh.h"
+constexpr uint32_t INVALID_BUFFER_ID = std::numeric_limits<uint32_t>::max();
 
-class Device;
+struct BufferAllocation {
+    uint32_t bufferId = INVALID_BUFFER_ID;
+    uint32_t offsetBlocks = 0;
+    uint32_t reservedBlocks = 0;
+
+    bool isValid() const {
+        return bufferId != INVALID_BUFFER_ID && reservedBlocks > 0;
+    }
+};
 
 class Allocator {
 public:
-    Allocator() {}
-    Allocator(int p_flag, uint32_t p_nbBlock, uint32_t p_blockSize, std::reference_wrapper<Buffer> p_staging, Device& p_device);
-    
-    void alloc(void* p_data, uint32_t p_size, uint32_t p_srcOffset, uint32_t p_dstOffset);
-    
-    // Fonctionne plus (copyBuffer ne se fait plus directement, faut faire un applyCopies)
-    void extractData(void* p_dst, uint32_t p_nbBlock, uint32_t p_offset);
+    void init(uint32_t p_buffer_id, uint32_t p_capacity_blocks, uint32_t p_block_size);
 
-    void cleanup();
+    bool canAlloc(uint32_t p_reserved_blocks) const;
+    BufferAllocation alloc(uint32_t p_reserved_blocks);
+    void free(const BufferAllocation& p_allocation);
+    void reset();
 
-    Allocator& operator=(const Allocator& other);
-
-    Buffer& getBuffer() { return _buffer; };
-    uint32_t getBlockSize() { return _blockSize; }
+    uint32_t getBufferId() const { return _buffer_id; }
+    uint32_t getBlockSize() const { return _block_size; }
+    uint32_t getCommittedBlockCount() const { return _committed_blocks; }
+    uint32_t getCapacityBlocks() const { return _capacity_blocks; }
 
 private:
-    Buffer _buffer;
+    struct FreeRange {
+        uint32_t offsetBlocks = 0;
+        uint32_t blockCount = 0;
+    };
 
-    uint32_t _blockSize;
-    VkDeviceSize _size;
+    uint32_t _buffer_id = INVALID_BUFFER_ID;
+    uint32_t _capacity_blocks = 0;
+    uint32_t _block_size = 0;
+    uint32_t _committed_blocks = 0;
+    std::vector<FreeRange> _free_ranges;
 
-    std::optional<std::reference_wrapper<Buffer>> _staging;
-    Device* _device = nullptr;
+    int findFreeRange(uint32_t p_reserved_blocks) const;
 };
 
 #endif

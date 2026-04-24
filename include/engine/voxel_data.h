@@ -3,14 +3,13 @@
 
 #include <vector>
 
-#include "engine/texture_data.h"
-
+// transparent controls both which CPU mesh stream a voxel uses and how adjacent face visibility is evaluated.
 struct VoxelData {
-    int textures;
     float shininess;
     bool transparent;
 };
 
+// Non-zero voxel ids use id - 1 to index this table.
 extern std::vector<VoxelData> VOXEL_DATAS;
 
 #endif

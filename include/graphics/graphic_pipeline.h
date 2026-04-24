@@ -3,14 +3,12 @@
 
 #include <filesystem>
 #include <vulkan/vulkan.h>
-#include <fstream>
 #include <vector>
-
-#include "graphics/light.h"
 
 class Device;
 class Swapchain;
 
+// Owns the persistent descriptor set layout plus the current render pass and graphics pipelines for voxel rendering.
 class GraphicPipeline {
 public:
     void createRenderPass(Swapchain& p_swapchain, Device& p_device);
@@ -28,24 +26,24 @@ public:
 
     VkRenderPass getRenderPass() const { return renderPass; }
 
-    const VkDescriptorSetLayout& getDescriptorSetLayout() { return descriptorSetLayout; }
+    const VkDescriptorSetLayout& getDescriptorSetLayout() const { return descriptorSetLayout; }
 
-    const VkPipeline& getOpaquePipeline() { return opaquePipeline; }
-    const VkPipelineLayout& getOpaquePipelineLayout() { return opaquePipelineLayout; }
+    const VkPipeline& getOpaquePipeline() const { return opaquePipeline; }
+    const VkPipelineLayout& getOpaquePipelineLayout() const { return opaquePipelineLayout; }
 
-    const VkPipeline& getTransparentPipeline() { return transparentPipeline; }
-    const VkPipelineLayout& getTransparentPipelineLayout() { return transparentPipelineLayout; }
+    const VkPipeline& getTransparentPipeline() const { return transparentPipeline; }
+    const VkPipelineLayout& getTransparentPipelineLayout() const { return transparentPipelineLayout; }
 
 private:
-    VkRenderPass renderPass;
+    VkRenderPass renderPass = VK_NULL_HANDLE;
 
-    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
 
-    VkPipelineLayout opaquePipelineLayout;
-    VkPipeline opaquePipeline;
+    VkPipelineLayout opaquePipelineLayout = VK_NULL_HANDLE;
+    VkPipeline opaquePipeline = VK_NULL_HANDLE;
 
-    VkPipelineLayout transparentPipelineLayout;
-    VkPipeline transparentPipeline;
+    VkPipelineLayout transparentPipelineLayout = VK_NULL_HANDLE;
+    VkPipeline transparentPipeline = VK_NULL_HANDLE;
 };
 
 #endif // VULKAN_PIPELINE_H

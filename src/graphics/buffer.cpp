@@ -1,17 +1,41 @@
 #include "graphics/buffer.h"
 
-#include <cstring>
-#include <chrono>
 #include <stdexcept>
 
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 
-#include "core/config.h"
 #include "graphics/device.h" 
 #include "graphics/renderer.h"
 #include "graphics/swapchain.h" 
 #include "graphics/buffer_manager.h"
+
+Buffer::Buffer(Buffer&& other) noexcept
+: buffer(other.buffer), bufferMemory(other.bufferMemory), size(other.size), _device(other._device)
+{
+    other.buffer = VK_NULL_HANDLE;
+    other.bufferMemory = VK_NULL_HANDLE;
+    other.size = 0;
+    other._device = nullptr;
+}
+
+Buffer& Buffer::operator=(Buffer&& other) noexcept {
+    if (this == &other) return *this;
+
+    cleanup();
+
+    buffer = other.buffer;
+    bufferMemory = other.bufferMemory;
+    size = other.size;
+    _device = other._device;
+
+    other.buffer = VK_NULL_HANDLE;
+    other.bufferMemory = VK_NULL_HANDLE;
+    other.size = 0;
+    other._device = nullptr;
+
+    return *this;
+}
 
 void Buffer::createBuffer(VkDeviceSize psize, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, Device& p_device) {
     VkBufferCreateInfo bufferInfo{};
@@ -43,6 +67,18 @@ void Buffer::createBuffer(VkDeviceSize psize, VkBufferUsageFlags usage, VkMemory
 }
 
 void Buffer::cleanup() {
-    vkDestroyBuffer(_device->getDevice(), buffer, nullptr);
-    vkFreeMemory(_device->getDevice(), bufferMemory, nullptr);
+    if (_device != nullptr) {
+        if (buffer != VK_NULL_HANDLE) {
+            vkDestroyBuffer(_device->getDevice(), buffer, nullptr);
+        }
+
+        if (bufferMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(_device->getDevice(), bufferMemory, nullptr);
+        }
+    }
+
+    buffer = VK_NULL_HANDLE;
+    bufferMemory = VK_NULL_HANDLE;
+    size = 0;
+    _device = nullptr;
 }

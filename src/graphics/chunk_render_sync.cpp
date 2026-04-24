@@ -1,4 +1,4 @@
-#include "engine/chunk_render_sync.h"
+#include "graphics/chunk_render_sync.h"
 
 #include "engine/chunk_mesh_registry.h"
 #include "graphics/buffer_manager.h"
@@ -6,6 +6,8 @@
 #include "world/chunk.h"
 #include "world/chunk_manager.h"
 
+// Consumes the CPU mesh cache for one chunk, updates graphics-side render state,
+// and only then clears the chunk's render-sync state.
 void ChunkRenderSync::syncChunk(
     Chunk& p_chunk,
     ChunkMeshRegistry& p_chunk_mesh_registry,
@@ -14,18 +16,19 @@ void ChunkRenderSync::syncChunk(
     BufferManager& p_buffer_manager
 ) {
     MeshBuilder* mesh_builder = p_chunk_mesh_registry.get(p_chunk.getPos());
+    // Render sync is skipped until meshing has produced CPU mesh data for this chunk.
+    // This relies on VoxelEngine::update() running meshing before render sync.
     if (!mesh_builder) return;
 
     p_chunk_render_state_cache.upload(
         p_chunk.getPos(),
         mesh_builder->getOpaqueMesh(),
         mesh_builder->getTransparentMesh(),
-        p_chunk.isDirty(),
+        p_chunk.needsRenderSync(),
         p_camera_pos,
         p_buffer_manager
     );
-
-    p_chunk.clearDirty();
+    p_chunk.clearRenderSyncDirty();
 }
 
 void ChunkRenderSync::syncAll(
@@ -46,6 +49,8 @@ void ChunkRenderSync::syncAll(
     });
 }
 
+// Removing a chunk must clear both the CPU mesh cache entry and the graphics-side
+// render state/allocation tracking associated with that chunk.
 void ChunkRenderSync::removeChunk(
     glm::ivec3 p_chunk_pos,
     ChunkMeshRegistry& p_chunk_mesh_registry,

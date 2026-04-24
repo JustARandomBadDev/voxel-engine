@@ -3,11 +3,15 @@
 #include <iostream>
 #include <cstring>
 
-#include "core/config.h"
-
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
+
+namespace {
+constexpr const char* kApplicationName = "Voxel Sandbox";
+constexpr const char* kEngineName = "Voxel Engine";
+constexpr uint32_t kVulkanApiVersion = VK_API_VERSION_1_0;
+}
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -25,29 +29,31 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
     }
 }
 
-void Instance::createInstance() {
-if (enableValidationLayers && !checkValidationLayerSupport()) {
-        throw std::runtime_error("validation layers requested, but not available!");
+void Instance::createInstance(bool p_enable_validation_layers, const std::vector<std::string>& p_required_extensions) {
+    _validation_layers_enabled = p_enable_validation_layers;
+
+    if (_validation_layers_enabled && !checkValidationLayerSupport()) {
+        throw std::runtime_error("Instance::createInstance() -> validation layers requested but VK_LAYER_KHRONOS_validation is not available");
     }
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
+    appInfo.pApplicationName = kApplicationName;
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
+    appInfo.pEngineName = kEngineName;
     appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_0;
+    appInfo.apiVersion = kVulkanApiVersion;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    auto extensions = getRequiredExtensions();
+    auto extensions = getRequiredExtensions(p_required_extensions);
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    if (enableValidationLayers) {
+    if (_validation_layers_enabled) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
 
@@ -60,44 +66,50 @@ if (enableValidationLayers && !checkValidationLayerSupport()) {
     }
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create instance!");
+        throw std::runtime_error("Instance::createInstance() -> failed to create Vulkan instance");
     }
 }
 
-void Instance::createSurface(GLFWwindow* window) {
+// The host callback only creates the surface; the resulting handle is then owned and destroyed by Instance.
+void Instance::createSurface(const std::function<VkResult(VkInstance, VkSurfaceKHR&)>& p_create_surface) {
     if (instance == VK_NULL_HANDLE) {
-        throw std::runtime_error("Vulkan instance is null!");
+        throw std::runtime_error("Instance::createSurface() -> Vulkan instance is not initialized");
     }
 
-    if (window == nullptr) {
-        throw std::runtime_error("GLFW window is null!");
+    if (!p_create_surface) {
+        throw std::runtime_error("Instance::createSurface() -> surface creation callback is not set");
     }
 
-    if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create window surface!");
+    if (p_create_surface(instance, surface) != VK_SUCCESS) {
+        throw std::runtime_error("Instance::createSurface() -> failed to create Vulkan surface via host callback");
     }
 }
 
 void Instance::setupDebugMessenger() {
-    if (!enableValidationLayers) return;
+    if (!_validation_layers_enabled) return;
 
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
     populateDebugMessengerCreateInfo(createInfo);
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-        throw std::runtime_error("failed to set up debug messenger!");
+        throw std::runtime_error("Instance::setupDebugMessenger() -> failed to create Vulkan debug messenger");
     }
     
 }
 
-std::vector<const char*> Instance::getRequiredExtensions() {
-    uint32_t glfwExtensionCount = 0;
-    const char** glfwExtensions;
-    glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+std::vector<const char*> Instance::getRequiredExtensions(const std::vector<std::string>& p_required_extensions) const {
+    if (p_required_extensions.empty()) {
+        throw std::runtime_error("Instance::getRequiredExtensions() -> host did not provide required Vulkan instance extensions");
+    }
 
-    std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+    std::vector<const char*> extensions;
+    extensions.reserve(p_required_extensions.size() + (_validation_layers_enabled ? 1 : 0));
 
-    if (enableValidationLayers) {
+    for (const std::string& extension : p_required_extensions) {
+        extensions.push_back(extension.c_str());
+    }
+
+    if (_validation_layers_enabled) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
@@ -143,11 +155,21 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Instance::debugCallback(VkDebugUtilsMessageSeveri
     return VK_FALSE;
 }
 
+// Instance-owned child handles must be destroyed before tearing down the Vulkan instance itself.
 void Instance::cleanup() {
-    if (enableValidationLayers) {
+    if (_validation_layers_enabled && debugMessenger != VK_NULL_HANDLE) {
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
 
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    if (surface != VK_NULL_HANDLE) {
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+    }
+
+    if (instance != VK_NULL_HANDLE) {
+        vkDestroyInstance(instance, nullptr);
+    }
+
+    debugMessenger = VK_NULL_HANDLE;
+    surface = VK_NULL_HANDLE;
+    instance = VK_NULL_HANDLE;
 }

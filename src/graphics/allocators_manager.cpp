@@ -1,177 +1,261 @@
 #include "graphics/allocators_manager.h"
 
-#include <iostream>
-#include <string.h>
-#include <vulkan/vulkan.h>
+#include <algorithm>
+#include <sstream>
+#include <stdexcept>
 
-#include "core/config.h"
-#include "graphics/device.h"
 #include "graphics/buffer_manager.h"
-#include "engine/mesh.h"
+#include "graphics/buffer.h"
 
-void AllocatorManager::init(Device& p_device) {
-    _staging.createBuffer(1000000,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
-        VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        p_device
-    );
+namespace {
 
-    uint32_t nbBlock = NB_FACE_CHUNK * std::pow(RENDER_DISTANCE, 2);
+constexpr VkBufferUsageFlags kVertexBufferUsage =
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT |
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 
-    _vertexAllocator = Allocator(
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        nbBlock,
-        static_cast<uint32_t>(NB_VERTEX_PER_BLOCK * sizeof(Vertex)),
-        _staging,
-        p_device
-    );
+constexpr VkBufferUsageFlags kIndexBufferUsage =
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+    VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+    VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
-    _indexAllocator = Allocator(
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT,
-        nbBlock,
-        static_cast<uint32_t>(NB_INDEX_PER_BLOCK * sizeof(uint32_t)),
-        _staging,
-        p_device
-    );
+constexpr VkBufferUsageFlags kIndirectBufferUsage =
+    VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT |
+    VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+    VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
-    nbBlock = std::pow(RENDER_DISTANCE, 3);
-
-    _indirectAllocator = Allocator(
-        VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        nbBlock,
-        static_cast<uint32_t>(sizeof(DrawIndirectCommand)),
-        _staging,
-        p_device
-    );
-
-    _id = 0;
-    _nbDataBlock = 0;
-    _nbIndirectBlock = 0;
-    _stagingOffset = 0;
+DrawIndirectCommand makeZeroIndirectCommand() {
+    return DrawIndirectCommand{
+        0,
+        0,
+        0,
+        0,
+        0
+    };
 }
 
-int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer_manager) {
-    auto& vertex = p_mesh.getVertex();
-    auto& index = p_mesh.getIndex();
-    uint32_t nbBlock = static_cast<uint32_t>(vertex.size()) / NB_VERTEX_PER_BLOCK;
-    uint32_t maxNbBlock = nbBlock * MARGIN_BLOCKS;
-    
-    DrawIndirectCommand indirectCommand;
-    indirectCommand.indexCount = index.size();
+} // namespace
+
+// Allocator capacity is configured in blocks and reset fully before creating the first page.
+void AllocatorManager::init(BufferManager& p_buffer_manager, const GpuAllocatorConfig& p_config) {
+    if (p_config.meshDataBlockCapacityPerAllocator == 0 ||
+        p_config.indirectCommandCapacityPerAllocator == 0 ||
+        p_config.allocationMarginBlocks == 0) {
+        throw std::runtime_error("AllocatorManager::init() -> invalid GPU allocator config");
+    }
+
+    cleanup();
+
+    _mesh_capacity_blocks = p_config.meshDataBlockCapacityPerAllocator;
+    _indirect_capacity_blocks = p_config.indirectCommandCapacityPerAllocator;
+    _allocation_margin_blocks = p_config.allocationMarginBlocks;
+
+    createPage(p_buffer_manager);
+}
+
+// Each page creates one vertex buffer, one index buffer, and one indirect buffer, each subdivided by block allocators.
+uint32_t AllocatorManager::createPage(BufferManager& p_buffer_manager) {
+    const uint32_t vertexBufferId = p_buffer_manager.createManagedBuffer(
+        static_cast<VkDeviceSize>(_mesh_capacity_blocks) * NB_VERTEX_PER_BLOCK * sizeof(Vertex),
+        kVertexBufferUsage,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    const uint32_t indexBufferId = p_buffer_manager.createManagedBuffer(
+        static_cast<VkDeviceSize>(_mesh_capacity_blocks) * NB_INDEX_PER_BLOCK * sizeof(uint32_t),
+        kIndexBufferUsage,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+    const uint32_t indirectBufferId = p_buffer_manager.createManagedBuffer(
+        static_cast<VkDeviceSize>(_indirect_capacity_blocks) * sizeof(DrawIndirectCommand),
+        kIndirectBufferUsage,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
+
+    AllocationPage page;
+    page.vertexAllocator.init(vertexBufferId, _mesh_capacity_blocks, static_cast<uint32_t>(NB_VERTEX_PER_BLOCK * sizeof(Vertex)));
+    page.indexAllocator.init(indexBufferId, _mesh_capacity_blocks, static_cast<uint32_t>(NB_INDEX_PER_BLOCK * sizeof(uint32_t)));
+    page.indirectAllocator.init(indirectBufferId, _indirect_capacity_blocks, static_cast<uint32_t>(sizeof(DrawIndirectCommand)));
+
+    _pages.push_back(std::move(page));
+    return static_cast<uint32_t>(_pages.size() - 1);
+}
+
+// Prefer reusing an existing page with room in all three allocators before growing storage with a new page.
+uint32_t AllocatorManager::findOrCreatePage(uint32_t p_data_reserved_blocks, BufferManager& p_buffer_manager) {
+    for (size_t i = 0; i < _pages.size(); ++i) {
+        AllocationPage& page = _pages[i];
+        if (page.vertexAllocator.canAlloc(p_data_reserved_blocks) &&
+            page.indexAllocator.canAlloc(p_data_reserved_blocks) &&
+            page.indirectAllocator.canAlloc(1)) {
+            return static_cast<uint32_t>(i);
+        }
+    }
+
+    return createPage(p_buffer_manager);
+}
+
+void AllocatorManager::queueMeshUpload(
+    Mesh& p_mesh,
+    const MeshAllocInfo& p_infos,
+    BufferManager& p_buffer_manager
+) {
+    // Vertex/index data and the matching indirect command are queued together so this logical allocation becomes renderable once uploads are applied.
+    const uint32_t dataBlocks = static_cast<uint32_t>(p_mesh.getVertex().size() / NB_VERTEX_PER_BLOCK);
+    const AllocationPage& page = _pages[p_infos.pageIndex];
+
+    DrawIndirectCommand indirectCommand{};
+    indirectCommand.indexCount = static_cast<uint32_t>(p_mesh.getIndex().size());
     indirectCommand.instanceCount = 1;
+    indirectCommand.indexOffset = p_infos.index.offsetBlocks * NB_INDEX_PER_BLOCK;
+    indirectCommand.vertexOffset = p_infos.vertex.offsetBlocks * NB_VERTEX_PER_BLOCK;
     indirectCommand.firstInstance = 0;
 
-    AllocInfo infos;
+    p_buffer_manager.enqueueUpload(
+        page.vertexAllocator.getBufferId(),
+        static_cast<VkDeviceSize>(p_infos.vertex.offsetBlocks) * page.vertexAllocator.getBlockSize(),
+        p_mesh.getVertex().data(),
+        static_cast<VkDeviceSize>(dataBlocks) * page.vertexAllocator.getBlockSize()
+    );
+
+    p_buffer_manager.enqueueUpload(
+        page.indexAllocator.getBufferId(),
+        static_cast<VkDeviceSize>(p_infos.index.offsetBlocks) * page.indexAllocator.getBlockSize(),
+        p_mesh.getIndex().data(),
+        static_cast<VkDeviceSize>(dataBlocks) * page.indexAllocator.getBlockSize()
+    );
+
+    p_buffer_manager.enqueueUpload(
+        page.indirectAllocator.getBufferId(),
+        static_cast<VkDeviceSize>(p_infos.indirect.offsetBlocks) * page.indirectAllocator.getBlockSize(),
+        &indirectCommand,
+        static_cast<VkDeviceSize>(page.indirectAllocator.getBlockSize())
+    );
+}
+
+// Freeing or relocating a mesh writes a zero indirect command so stale draw slots stop rendering before or while storage is reused.
+void AllocatorManager::queueZeroIndirect(const MeshAllocInfo& p_infos, BufferManager& p_buffer_manager) {
+    const AllocationPage& page = _pages[p_infos.pageIndex];
+    const DrawIndirectCommand zeroCommand = makeZeroIndirectCommand();
+
+    p_buffer_manager.enqueueUpload(
+        page.indirectAllocator.getBufferId(),
+        static_cast<VkDeviceSize>(p_infos.indirect.offsetBlocks) * page.indirectAllocator.getBlockSize(),
+        &zeroCommand,
+        static_cast<VkDeviceSize>(page.indirectAllocator.getBlockSize())
+    );
+}
+
+// A logical allocation id stays stable across updates when reserved capacity still fits;
+// otherwise old storage is freed/zeroed and a fresh page allocation is made.
+int AllocatorManager::allocMesh(Mesh& p_mesh, int p_pid, BufferManager& p_buffer_manager) {
+    const uint32_t dataBlocks = static_cast<uint32_t>(p_mesh.getVertex().size() / NB_VERTEX_PER_BLOCK);
+    const uint32_t reservedDataBlocks = std::max(1u, dataBlocks * _allocation_margin_blocks);
+
+    if (reservedDataBlocks > _mesh_capacity_blocks) {
+        std::ostringstream oss;
+        oss << "AllocatorManager::allocMesh() -> mesh allocation exceeds per-buffer capacity: "
+            << "requestedBlocks=" << reservedDataBlocks
+            << ", pageCapacityBlocks=" << _mesh_capacity_blocks;
+        throw std::runtime_error(oss.str());
+    }
+
+    if (_indirect_capacity_blocks == 0) {
+        throw std::runtime_error("AllocatorManager::allocMesh() -> indirect allocator capacity is 0");
+    }
 
     int out = p_pid;
     if (out == -1) {
         if (_freeId.empty()) {
-            out = _id++;
+            out = static_cast<int>(_next_id++);
         } else {
-            out = _freeId[0];
-            _freeId.erase(_freeId.begin());
+            out = _freeId.back();
+            _freeId.pop_back();
         }
-        newAlloc(nbBlock, maxNbBlock, infos, out);
-    } else {
-        infos = _used[out];
-        if (nbBlock > infos.maxDataBlock) {
-            _used.erase(out);
-            _freeList.push_back(infos);
-            freeIndirectBlock(infos.indirectBlock);
-            newAlloc(nbBlock, maxNbBlock, infos, out);
+    } else if (out < 0) {
+        std::ostringstream oss;
+        oss << "AllocatorManager::allocMesh() -> invalid allocation id: " << out;
+        throw std::runtime_error(oss.str());
+    }
+
+    MeshAllocInfo infos;
+    bool needsFreshAllocation = true;
+
+    const auto usedIt = _used.find(static_cast<uint32_t>(out));
+    if (usedIt != _used.end()) {
+        infos = usedIt->second;
+        if (dataBlocks <= infos.vertex.reservedBlocks &&
+            dataBlocks <= infos.index.reservedBlocks &&
+            infos.indirect.reservedBlocks >= 1) {
+            needsFreshAllocation = false;
+        } else {
+            AllocationPage& oldPage = _pages[infos.pageIndex];
+            oldPage.vertexAllocator.free(infos.vertex);
+            oldPage.indexAllocator.free(infos.index);
+            oldPage.indirectAllocator.free(infos.indirect);
+            queueZeroIndirect(infos, p_buffer_manager);
         }
     }
 
-    indirectCommand.vertexOffset = static_cast<uint32_t>(infos.dataBlock * NB_VERTEX_PER_BLOCK);
-    indirectCommand.indexOffset = static_cast<uint32_t>(infos.dataBlock * NB_INDEX_PER_BLOCK);
+    if (needsFreshAllocation) {
+        const uint32_t pageIndex = findOrCreatePage(reservedDataBlocks, p_buffer_manager);
+        AllocationPage& page = _pages[pageIndex];
 
-    auto tryAlloc = [&](Allocator& p_allocator, void* p_data, uint32_t p_blocks, uint32_t& p_stagingOffset, uint32_t p_dest_offset) {
-        uint32_t size = p_blocks * p_allocator.getBlockSize();
+        infos.pageIndex = pageIndex;
+        infos.vertex = page.vertexAllocator.alloc(reservedDataBlocks);
+        infos.index = page.indexAllocator.alloc(reservedDataBlocks);
+        infos.indirect = page.indirectAllocator.alloc(1);
+    }
 
-        if (p_stagingOffset + size > _staging.getSize()) {
-            p_buffer_manager.applyCopies();
-            p_stagingOffset = 0;
-        }
-        p_allocator.alloc(p_data, p_blocks, p_stagingOffset, p_dest_offset);
-        p_stagingOffset += size;
-    };
-
-    tryAlloc(_vertexAllocator, vertex.data(), nbBlock, _stagingOffset, infos.dataBlock);
-    tryAlloc(_indexAllocator, index.data(), nbBlock, _stagingOffset, infos.dataBlock);
-    tryAlloc(_indirectAllocator, &indirectCommand, 1, _stagingOffset, infos.indirectBlock);
+    _used[static_cast<uint32_t>(out)] = infos;
+    queueMeshUpload(p_mesh, infos, p_buffer_manager);
 
     return out;
 }
 
-void AllocatorManager::freeMesh(int p_pid) {
-    AllocInfo infos = _used[p_pid];
+// Freeing a mesh releases all three buffer allocations, disables the corresponding indirect draw entry, and returns the logical id to the reuse pool.
+void AllocatorManager::freeMesh(int p_pid, BufferManager& p_buffer_manager) {
+    if (p_pid < 0) {
+        std::ostringstream oss;
+        oss << "AllocatorManager::freeMesh() -> invalid allocation id: " << p_pid;
+        throw std::runtime_error(oss.str());
+    }
 
-    _freeList.push_back(infos);
+    const auto usedIt = _used.find(static_cast<uint32_t>(p_pid));
+    if (usedIt == _used.end()) {
+        std::ostringstream oss;
+        oss << "AllocatorManager::freeMesh() -> unknown or already freed allocation id: " << p_pid;
+        throw std::runtime_error(oss.str());
+    }
 
-    freeIndirectBlock(infos.indirectBlock);
+    const MeshAllocInfo infos = usedIt->second;
+    AllocationPage& page = _pages[infos.pageIndex];
+    page.vertexAllocator.free(infos.vertex);
+    page.indexAllocator.free(infos.index);
+    page.indirectAllocator.free(infos.indirect);
+    queueZeroIndirect(infos, p_buffer_manager);
 
-    _used.erase(p_pid);
-
+    _used.erase(usedIt);
     _freeId.push_back(p_pid);
 }
 
-int AllocatorManager::availableAlloc(uint32_t p_nbBlock) {
-    if (_freeList.empty()) return -1;
-
-    uint32_t index = 0;
-    for (AllocInfo info : _freeList) {
-        if (p_nbBlock * MARGIN_BLOCKS < info.maxDataBlock) return index;
-
-        index++;
+// This counts committed indirect slots across all pages, not only currently visible or non-zero draws.
+uint32_t AllocatorManager::getIndirectCount() const {
+    uint32_t total = 0;
+    for (const AllocationPage& page : _pages) {
+        total += page.indirectAllocator.getCommittedBlockCount();
     }
-
-    return -1;
-}
-
-void AllocatorManager::newAlloc(uint32_t p_nbBlock, uint32_t p_maxNbBlock, AllocInfo& p_infos, int p_pid) {
-    int allocBlockId = availableAlloc(p_nbBlock);
-
-    if (allocBlockId < 0) {
-        // Dans le cas ou la freelist ne contient pas de block valide
-
-        p_infos = {
-            static_cast<uint32_t>(_nbDataBlock),
-            static_cast<uint32_t>(p_maxNbBlock),
-            static_cast<uint32_t>(_nbIndirectBlock)
-        };
-    
-        _used[p_pid] = p_infos;
-        
-        _nbDataBlock += p_maxNbBlock;
-        _nbIndirectBlock++;
-    } else {
-        // Dans le cas ou la freelist contient un block valide pour le chunk
-
-        p_infos = _freeList[allocBlockId];
-        _freeList.erase(_freeList.begin()+allocBlockId);
-
-        _used[p_pid] = p_infos;
-    }
-}
-
-void AllocatorManager::freeIndirectBlock(uint32_t p_offset) {
-    DrawIndirectCommand indirectCommand;
-    indirectCommand.indexCount = 0;
-    indirectCommand.instanceCount = 0;
-    indirectCommand.indexOffset = 0;
-    indirectCommand.vertexOffset = 0;
-    indirectCommand.firstInstance = 0;
-
-    _indirectAllocator.alloc(&indirectCommand, 1, _stagingOffset, p_offset);
-
-    _stagingOffset += _indirectAllocator.getBlockSize();
+    return total;
 }
 
 void AllocatorManager::cleanup() {
-    _vertexAllocator.cleanup();
-    _indexAllocator.cleanup();
-    _indirectAllocator.cleanup();
-    _staging.cleanup();
+    _pages.clear();
+    _used.clear();
+    _freeId.clear();
+    _next_id = 0;
+    _mesh_capacity_blocks = 0;
+    _indirect_capacity_blocks = 0;
+    _allocation_margin_blocks = 1;
 }

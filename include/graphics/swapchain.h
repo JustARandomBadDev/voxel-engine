@@ -2,7 +2,6 @@
 #define VULKAN_SWAPCHAIN_H
 
 #include <vulkan/vulkan.h>
-#include <GLFW/glfw3.h>
 #include <vector>
 
 struct SwapChainSupportDetails {
@@ -16,26 +15,27 @@ class GraphicPipeline;
 class Instance;
 class Renderer;
 
+// Owns swapchain storage, image views, and framebuffers for the current swapchain instance.
 class Swapchain {
 public:
-    void createSwapChain(GLFWwindow* window, Instance& p_instance, Device& p_device);
-    void recreateSwapChain(GLFWwindow* window, Instance& p_instance, GraphicPipeline& p_graphic_pipeline, Renderer& p_renderer, Device& p_device);
+    void createSwapChain(VkExtent2D p_framebuffer_extent, Instance& p_instance, Device& p_device, uint32_t p_frames_in_flight);
     void createImageViews(Device& p_device);
+    void createFramebuffers(GraphicPipeline& p_graphic_pipeline, Device& p_device);
+    void cleanupFramebuffers(Device& p_device);
     void cleanup(Device& p_device);
 
-    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance);
-    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device);
+    SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice pdevice, Instance& p_instance) const;
+    VkImageView             createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, Device& p_device) const;
 
-    const VkSwapchainKHR&             getSwapChain() { return swapChain; }
-    const VkFormat&                   getSwapChainImageFormat() { return swapChainImageFormat; }
-    const VkExtent2D&                 getSwapChainExtent() { return swapChainExtent; }
-    const std::vector<VkImageView>&   getSwapChainImageViews() { return swapChainImageViews; }
-    const std::vector<VkFramebuffer>& getSwapChainFramebuffers() { return swapChainFramebuffers; }
-    const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) { return swapChainFramebuffers[imageIndex]; }
-    const float                       getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
-    const uint32_t                    getFramesInFlight() const { return frames_in_flight; }
+    const VkSwapchainKHR&             getSwapChain() const { return swapChain; }
+    const VkFormat&                   getSwapChainImageFormat() const { return swapChainImageFormat; }
+    const VkExtent2D&                 getSwapChainExtent() const { return swapChainExtent; }
+    const std::vector<VkImageView>&   getSwapChainImageViews() const { return swapChainImageViews; }
+    const std::vector<VkFramebuffer>& getSwapChainFramebuffers() const { return swapChainFramebuffers; }
+    const VkFramebuffer&              getFramebuffers(uint32_t imageIndex) const { return swapChainFramebuffers[imageIndex]; }
 
-    void addSwapChainFramebuffers(VkFramebuffer pframeBuffer);
+    float    getAspectRatio() const { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
+    uint32_t getImageCount() const { return imageCount; }
 
 private:
     VkSwapchainKHR swapChain;
@@ -45,12 +45,11 @@ private:
     std::vector<VkImageView> swapChainImageViews;
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
-    uint32_t frames_in_flight;
+    uint32_t imageCount = 0;
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(GLFWwindow* window, const VkSurfaceCapabilitiesKHR& capabilities);
-
+    VkExtent2D chooseSwapExtent(VkExtent2D p_framebuffer_extent, const VkSurfaceCapabilitiesKHR& capabilities);
 };
 
 #endif // VULKAN_SWAPCHAIN_HPP
