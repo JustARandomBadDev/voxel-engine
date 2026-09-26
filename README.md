@@ -3,6 +3,24 @@
 `voxel-engine` is a reusable C++ voxel engine core with a Vulkan rendering backend.
 It is designed as a library that client applications can integrate to manage voxel world data, run CPU-side meshing, and render through an explicit graphics runtime.
 
+## Demo
+
+The demos below are produced with [`voxel-sandbox`](https://github.com/JustARandomBadDev/voxel-sandbox), a client application built on top of `voxel-engine` to validate and showcase engine behavior.
+
+### Static World
+
+The static-world demo generates a **140 × 140 chunk** terrain, representing **5,017,600 surface blocks**.
+
+![Static world demo](docs/assets/demo.png)
+
+### Dynamic World
+
+The dynamic-world demo keeps a **30 × 16 × 30 chunk** region loaded around the camera, for up to **14,400 chunks** managed dynamically.
+
+Chunk generation and loading are currently single-threaded, so this mode is still experimental and may exhibit performance issues or occasional visual glitches during runtime.
+
+https://github.com/user-attachments/assets/975e69c2-0e71-4dd3-a46c-a7fa575596b4
+
 ## What This Project Is
 
 - A modular voxel engine library
